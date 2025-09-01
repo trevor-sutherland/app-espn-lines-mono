@@ -1,0 +1,84 @@
+<div class="container mt-4">
+  <h2 class="mb-4 text-center" style="text-transform: uppercase;">This Week's {{ getSportAbbr()}} Games</h2>
+  @if(loading) {
+    <div class="text-center my-5">
+      <div class="spinner-border"></div>
+    </div>
+  }
+  @if(error) {
+    <div class="alert alert-danger">{{ error }}</div>
+  }
+  @if(!loading && events.length) {
+    <form (ngSubmit)="submitPick()">
+      <div class="mb-3">
+        <label for="week-select">Select Week:</label>
+        <select id="week-select" name="week" [(ngModel)]="selectedWeek" (change)="onWeekChange(selectedWeek)" class="form-select">
+          @for(week of [].constructor(maxWeeks); track $index) {
+            <option [value]="$index + 1">Week {{ $index + 1 }}</option>
+          }
+        </select>
+      </div>
+
+      @for(event of events; track event.id) {
+        @if(event.bookmakers.length !== 0) {
+          <div class="card mb-4">
+            <div class="card-header bg-dark text-light d-flex justify-content-center">
+              <span>{{ event.commence_time | date:'EEEE MMM dd hh:mm a' }}</span>
+            </div>
+            <div class="card-body">
+              @for(bookmaker of event.bookmakers; track bookmaker.key) {
+                <table class="table table-sm table-bordered align-middle">
+                  <thead>
+                    <tr>
+                      <th class="text-center" style="width:5%;"></th>
+                      <th class="text-center" style="width:55%;">Team</th>
+                      <th class="text-center" style="width:20%;">Line</th>
+                      <th class="text-center" style="width:20%;">Pick</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for(market of bookmaker.markets; track market.key) {
+                      @for(outcome of market.outcomes; track outcome.name) {
+                        <tr>
+                          <td class="text-center" style="width:5%;">
+                            @if(getTeamAbbr(outcome.name, sportKey)) {
+                              <img
+                                [src]="'assets/' + getSportAbbr() + '/' + getTeamAbbr(outcome.name, sportKey) + '.png' || 'assets/default.png'"
+                                alt="{{ outcome.name }}"
+                                style="height: 24px; width: 24px; vertical-align: middle; margin-right: 6px;" />
+                            }
+                          </td>
+                          <td class="text-center" style="width:55%;">{{ outcome.name }}</td>
+                          <td class="text-center" style="width:20%;">{{ outcome.point || '-' }}</td>
+                          <td class="text-center" style="width:20%;">
+                            <input
+                              type="radio"
+                              name="pick"
+                              [value]="event.id + outcome.name + bookmaker.key + market.key"
+                              [checked]="selected?.eventId === event.id && selected?.team === outcome.name"
+                              (change)="selectPick(event.id, outcome.name, outcome.point)"
+                              [disabled]="submitting" />
+                          </td>
+                        </tr>
+                      }
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      <div class="text-center">
+        <button class="btn btn-primary" type="submit" [disabled]="!selected || submitting">
+          @if(submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+          Submit Pick
+        </button>
+      </div>
+    </form>
+  }
+  @if(!loading && !events.length) {
+    <div class="alert alert-info text-center">No games found for this week.</div>
+  }
+</div>

@@ -1,0 +1,50 @@
+<div class="container mt-5" style="max-width: 400px;">
+  <h2 class="mb-4 text-center">Login</h2>
+  <form (ngSubmit)="onSubmit($event)" #loginForm="ngForm" autocomplete="off">
+    <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+    <div *ngIf="success" class="alert alert-success">{{ success }}</div>
+
+    <div class="mb-3">
+      <label for="email" class="form-label">Email address</label>
+      <input
+        type="email"
+        class="form-control"
+        id="email"
+        required
+        [(ngModel)]="email"
+        name="email"
+        [disabled]="loading"
+        autocomplete="username"
+      />
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input
+        type="password"
+        class="form-control"
+        id="password"
+        required
+        [(ngModel)]="password"
+        name="password"
+        [disabled]="loading"
+        autocomplete="current-password"
+      />
+    </div>
+    <button
+      type="submit"
+      class="btn btn-primary w-100"
+      [disabled]="loading || !loginForm.form.valid"
+    >
+      <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+      Login
+    </button>
+  </form>
+  <div class="text-center mt-3">
+    <button class="btn btn-link" type="button" (click)="onSignup()">Sign up</button>
+  </div>
+  @if(error) {
+  <div class="text-center mt-3">
+    <button class="btn btn-link" type="button" (click)="onPwReset()">Reset Password</button>
+  </div>
+  }
+</div>

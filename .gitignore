@@ -7,7 +7,8 @@ out-tsc
 
 # dependencies
 node_modules
-
+/ui/public/assets/ncaaf
+/ui/public/assets/nfl
 # IDEs and editors
 /.idea
 .project
@@ -42,3 +43,5 @@ Thumbs.db
 .nx/workspace-data
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
+**/.env
+.angular

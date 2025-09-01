@@ -1,0 +1,57 @@
+<div class="container mt-5" style="max-width: 400px;">
+  <h2 class="mb-4 text-center">Sign Up</h2>
+  <form (ngSubmit)="onSubmit()" #signupForm="ngForm" autocomplete="off">
+    <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+    <div *ngIf="success" class="alert alert-success">{{ success }}</div>
+
+    <div class="mb-3">
+      <label for="displayName" class="form-label">Display Name</label>
+      <input
+        type="text"
+        class="form-control"
+        id="displayName"
+        required
+        [(ngModel)]="displayName"
+        name="displayName"
+        [disabled]="loading"
+      />
+    </div>
+    <div class="mb-3">
+      <label for="email" class="form-label">Email address</label>
+      <input
+        type="email"
+        class="form-control"
+        id="email"
+        required
+        [(ngModel)]="email"
+        name="email"
+        [disabled]="loading"
+        autocomplete="username"
+      />
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input
+        type="password"
+        class="form-control"
+        id="password"
+        required
+        [(ngModel)]="password"
+        name="password"
+        [disabled]="loading"
+        autocomplete="new-password"
+      />
+    </div>
+    <button
+      type="submit"
+      class="btn btn-success w-100"
+      [disabled]="loading || !signupForm.form.valid"
+    >
+      <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+      Sign Up
+    </button>
+  </form>
+  <div class="text-center mt-3">
+    <a [routerLink]="['/login']" class="btn btn-link">Already have an account? Login</a>
+  </div>
+</div>

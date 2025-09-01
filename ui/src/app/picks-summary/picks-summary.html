@@ -1,0 +1,40 @@
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">All Picks</h2>
+  <div class="mb-3">
+    <label for="week-select">Select Week:</label>
+    <select
+      id="week-select"
+      name="week"
+      [(ngModel)]="selectedWeek"
+      (change)="onWeekChange(selectedWeek)"
+      class="form-select"
+      [ngModelOptions]="{standalone: true}"
+    >
+      <option *ngFor="let week of [].constructor(maxWeeks); let i = index" [value]="i + 1">
+        Week {{ i + 1 }}
+      </option>
+    </select>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th scope="col">Display Name</th>
+          <th scope="col">Team</th>
+          <th scope="col">Line</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for(pick of filteredPicks; track pick._id) {
+        <tr>
+          <td>{{ pick.userId.displayName }}</td>
+          <td>{{ pick.team }}</td>
+          <td>{{ pick.line }}</td>
+          <td>{{ pick.status }}</td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
