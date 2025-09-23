@@ -1,61 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { OddsLatest, OddsLatestDocument } from './odds.schema';
 import axios, { AxiosInstance } from 'axios';
-
-/**
- * Minimal types from The Odds API v4 (trimmed for what we use).
- */
-type OddsApiMarketKey = 'h2h' | 'spreads' | 'totals';
-
-interface OddsApiOutcome {
-  name: string; // team name, 'Over', 'Under', or 'Draw'
-  price: number; // American odds (e.g., -110)
-  point?: number; // line for spreads/totals
-}
-
-interface OddsApiMarket {
-  key: OddsApiMarketKey;
-  outcomes: OddsApiOutcome[];
-}
-
-interface OddsApiBookmaker {
-  key: string; // e.g., 'draftkings'
-  title: string; // e.g., 'DraftKings'
-  last_update: string; // ISO timestamp
-  markets: OddsApiMarket[];
-}
-
-interface OddsApiEvent {
-  id: string; // event id
-  sport_key: string; // e.g., 'americanfootball_nfl'
-  sport_title: string; // 'NFL'
-  commence_time: string; // ISO kickoff
-  home_team: string;
-  away_team: string;
-  bookmakers: OddsApiBookmaker[];
-}
-
-/**
- * Normalized row you can persist to Mongo or return from your API.
- */
-export type NormalizedOddsRow = {
-  sport: string; // 'americanfootball_nfl'
-  eventId: string;
-  commenceTime: string; // ISO
-  bookmakerKey: string; // e.g., 'draftkings'
-  bookmakerTitle: string; // e.g., 'DraftKings'
-  market: OddsApiMarketKey; // 'h2h' | 'spreads' | 'totals'
-  selection: 'home' | 'away' | 'over' | 'under' | 'draw';
-  team?: string; // for h2h we include the team name (or 'Draw')
-  line: number | null; // spread/total line; null for h2h
-  price: number; // American odds
-  lastUpdate: string; // ISO from bookmaker.last_update
-};
-
-export type OddsApiUsage = {
-  used?: number;
-  remaining?: number;
-  lastRequestCost?: number;
-};
+import { NormalizedOddsRow, OddsApiUsage, OddsApiEvent } from './models/odds.model';
 
 @Injectable()
 export class OddsService {
@@ -66,7 +14,10 @@ export class OddsService {
   private readonly defaultBookmakers: string;
   private readonly oddsFormat: 'american' | 'decimal';
 
-  constructor() {
+  constructor(
+    @InjectModel(OddsLatest.name)
+    private readonly oddsModel: Model<OddsLatestDocument>,
+  ) {
     this.apiKey = process.env.ODDS_API_KEY || '';
     if (!this.apiKey) {
       this.log.warn('ODDS_API_KEY is not set. Set it in your environment.');
@@ -80,29 +31,23 @@ export class OddsService {
       baseURL: 'https://api.the-odds-api.com/v4',
       timeout: 10_000,
       headers: { 'User-Agent': 'mongo-espn-line-app/1.0 (NestJS)' },
-      // If you run behind a proxy/corp network, add proxy config here.
     });
   }
 
-  /**
-   * Public: fetch normalized NFL mainlines in one call.
-   * @param sportKey The sport key (e.g., 'americanfootball_nfl')
-   * @param opts Optional overrides (regions, markets, bookmakers, dateFormat, eventIds)
-   */
-  async fetchNflMainlines(
+  async fetchSportMainlines(
     sportKey: string,
     opts?: {
-    regions?: string; // e.g., 'us' or 'us,us2' (see Odds API docs)
-    markets?: string; // 'h2h,spreads,totals'
-    bookmakers?: string; // comma list to target specific books (counts toward credits by group)
-    dateFormat?: 'iso' | 'unix';
-    eventIds?: string; // comma-separated list of event IDs to filter
-  }): Promise<{
+      regions?: string;
+      markets?: string;
+      bookmakers?: string;
+      dateFormat?: 'iso' | 'unix';
+      eventIds?: string;
+    }
+  ): Promise<{
     rows: NormalizedOddsRow[];
     usage: OddsApiUsage;
     raw: OddsApiEvent[];
   }> {
-    console.log(sportKey)
     const { events, usage } = await this.getSportOdds(sportKey, {
       markets: opts?.markets ?? this.defaultMarkets,
       bookmakers: opts?.bookmakers ?? this.defaultBookmakers,
@@ -115,9 +60,106 @@ export class OddsService {
     return { rows, usage, raw: events };
   }
 
-  /**
-   * Generic caller for /v4/sports/{sport}/odds
-   */
+  async fetchAndSaveSportMainlines(
+    sportKey: string,
+    opts?: {
+      regions?: string;
+      markets?: string;
+      bookmakers?: string;
+      dateFormat?: 'iso' | 'unix';
+      eventIds?: string;
+      allowInsert?: boolean;
+    },
+  ): Promise<{ updated: number; matched: number; skipped: number; inserted: number; rows: NormalizedOddsRow[] }> {
+    const { rows } = await this.fetchSportMainlines(sportKey, opts);
+    if (!rows.length) return { updated: 0, matched: 0, skipped: 0, inserted: 0, rows: [] };
+
+    // Build bulk upserts using the full schema fields
+    const ops = rows.map((r) => ({
+      updateOne: {
+        filter: {
+          sport: r.sport,
+          eventId: r.eventId,
+          bookmakerKey: r.bookmakerKey,
+          market: r.market,
+          selection: r.selection,
+          team: r.team,
+        },
+        update: {
+          $set: {
+            // Full document fields from schema
+            sport: r.sport,
+            eventId: r.eventId,
+            commenceTime: r.commenceTime,
+            bookmakerKey: r.bookmakerKey,
+            bookmakerTitle: r.bookmakerTitle,
+            market: r.market,
+            selection: r.selection,
+            team: r.team,
+            line: r.line ?? null,
+            price: r.price,
+            lastUpdate: r.lastUpdate,
+          },
+        },
+        upsert: !!opts?.allowInsert,
+      },
+    }));
+
+    const bulk = await this.oddsModel.bulkWrite(ops, { ordered: false });
+    const modified = bulk.modifiedCount ?? 0;
+    const matched = bulk.matchedCount ?? 0;
+    const inserted = bulk.upsertedCount ?? 0;
+    let skipped = rows.length - (matched + inserted);
+
+    let manualInserted = 0;
+    if (skipped > 0 && (opts?.allowInsert === true || (opts?.allowInsert === undefined && inserted === 0))) {
+      const keys = rows.map(r => ({
+        sport: r.sport,
+        eventId: r.eventId,
+        bookmakerKey: r.bookmakerKey,
+        market: r.market,
+        selection: r.selection,
+        team: r.team,
+      }));
+      const existing = await this.oddsModel.find(
+        { $or: keys },
+        { sport: 1, eventId: 1, bookmakerKey: 1, market: 1, selection: 1, team: 1 }
+      ).lean();
+
+      const existingKeySet = new Set(
+        existing.map(d => `${d.sport}|${d.eventId}|${d.bookmakerKey}|${d.market}|${d.selection}|${d.team}`)
+      );
+
+      const toInsert = rows
+        .filter(r => !existingKeySet.has(`${r.sport}|${r.eventId}|${r.bookmakerKey}|${r.market}|${r.selection}|${r.team}`))
+        .map(r => ({
+          sport: r.sport,
+          eventId: r.eventId,
+          commenceTime: r.commenceTime,
+          bookmakerKey: r.bookmakerKey,
+          bookmakerTitle: r.bookmakerTitle,
+          market: r.market,
+          selection: r.selection,
+          team: r.team,
+          line: r.line ?? null,
+          price: r.price,
+          lastUpdate: r.lastUpdate,
+        }));
+
+      if (toInsert.length) {
+        try {
+          const res = await this.oddsModel.insertMany(toInsert, { ordered: false });
+          manualInserted = res.length;
+          skipped = Math.max(0, skipped - manualInserted);
+        } catch (e) {
+          this.log.warn(`InsertMany encountered duplicates or errors: ${String(e)}`);
+        }
+      }
+    }
+
+    return { updated: modified, matched, skipped, inserted: inserted + manualInserted, rows };
+  }
+
   async getSportOdds(
     sportKey: string,
     params: {
@@ -133,41 +175,21 @@ export class OddsService {
         `/sports/${encodeURIComponent(sportKey)}/odds`,
         { params: { ...params, apiKey: this.apiKey } },
       );
-      const usage = this.extractUsage(headers);
+      const usage = this.extractUsage(headers as Record<string, unknown>);
       return { events: data ?? [], usage };
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const body = err?.response?.data;
-      this.log.error(`Odds API error ${status ?? ''}: ${JSON.stringify(body)}`);
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err && 'response' in err) {
+        const anyErr = err as { response?: { status?: number; data?: unknown } };
+        const status = anyErr.response?.status;
+        const body = anyErr.response?.data;
+        this.log.error(`Odds API error ${status ?? ''}: ${JSON.stringify(body)}`);
+      } else {
+        this.log.error(`Unknown Odds API error: ${String(err)}`);
+      }
       throw err;
     }
   }
 
-  /**
-   * Useful helpers if you want to list sports or events before fetching odds.
-   */
-  async listSports(): Promise<{ data: any; usage: OddsApiUsage }> {
-    const { data, headers } = await this.http.get('/sports', {
-      params: { apiKey: this.apiKey },
-    });
-    return { data, usage: this.extractUsage(headers) };
-  }
-
-  async listEvents(
-    sportKey: string,
-  ): Promise<{ data: any; usage: OddsApiUsage }> {
-    const { data, headers } = await this.http.get(
-      `/sports/${encodeURIComponent(sportKey)}/events`,
-      {
-        params: { apiKey: this.apiKey },
-      },
-    );
-    return { data, usage: this.extractUsage(headers) };
-  }
-
-  /**
-   * Convert Odds API events into flat rows (one per market outcome).
-   */
   private normalizeEvents(events: OddsApiEvent[]): NormalizedOddsRow[] {
     const rows: NormalizedOddsRow[] = [];
     for (const ev of events) {
@@ -205,11 +227,7 @@ export class OddsService {
                   bookmakerKey: bm.key,
                   bookmakerTitle: bm.title,
                   market: 'spreads',
-                  selection: this.mapHomeAway(
-                    oc.name,
-                    ev.home_team,
-                    ev.away_team,
-                  ),
+                  selection: this.mapHomeAway(oc.name, ev.home_team),
                   team: oc.name,
                   line: oc.point ?? null,
                   price: oc.price,
@@ -259,11 +277,7 @@ export class OddsService {
     return 'draw';
   }
 
-  private mapHomeAway(
-    name: string,
-    home: string,
-    away: string,
-  ): 'home' | 'away' {
+  private mapHomeAway(name: string, home: string): 'home' | 'away' {
     const n = name.toLowerCase();
     return n === home.toLowerCase() || home.toLowerCase().includes(n)
       ? 'home'
@@ -275,18 +289,28 @@ export class OddsService {
     return n.startsWith('o') ? 'over' : 'under';
   }
 
-  private extractUsage(headers: Record<string, any>): OddsApiUsage {
-    const used = Number(
-      headers['x-requests-used'] ?? headers['x-requests-used-per-month'],
-    );
-    const remaining = Number(headers['x-requests-remaining']);
-    const lastRequestCost = Number(headers['x-requests-last']);
-    return {
-      used: Number.isFinite(used) ? used : undefined,
-      remaining: Number.isFinite(remaining) ? remaining : undefined,
-      lastRequestCost: Number.isFinite(lastRequestCost)
-        ? lastRequestCost
-        : undefined,
+  private extractUsage(headers: Record<string, unknown>): OddsApiUsage {
+    const getNum = (k: string): number | undefined => {
+      const v = headers[k];
+      if (v == null) return undefined;
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : undefined;
     };
+    const used = getNum('x-requests-used') ?? getNum('x-requests-used-per-month');
+    const remaining = getNum('x-requests-remaining');
+    const lastRequestCost = getNum('x-requests-last');
+    return {
+      used,
+      remaining,
+      lastRequestCost,
+    };
+  }
+
+  async getAllOdds(sport?: string) {
+    const filter: Record<string, unknown> = {};
+    if (sport) filter.sport = sport;
+    return this.oddsModel
+      .find(filter)
+      .lean();
   }
 }

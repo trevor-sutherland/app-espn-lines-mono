@@ -2,10 +2,10 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { inject, OnDestroy } from '@angular/core';
-import { AuthService } from '../auth.service';
+import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { LoginResponse } from '../interfaces/login-response.interface';
+import { LoginResponse } from './login-response.interface';
 
 @Component({
   selector: 'app-login',

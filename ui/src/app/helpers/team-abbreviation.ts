@@ -1,5 +1,4 @@
 export const getTeamAbbr = (teamName: string, sportKey: string): string => {
-  console.log(sportKey)
   // Map full team names to abbreviations as used in your SVG filenames
   const mapNfl: Record<string, string> = {
     'Arizona Cardinals': 'ARI',

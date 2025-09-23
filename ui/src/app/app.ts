@@ -1,12 +1,11 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
-import { NflOddsService } from './nfl-odds-service';
-import { inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+import { NflOddsService } from './services/sport-odds-service';
 import { RouterOutlet } from "@angular/router";
-import { Subscription } from 'rxjs';
 // import { oddsMock } from './mocks/oddsNfl.mock';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { SportService } from './sport.service';
+import { SportService } from './services/sport.service';
+import {SportsEnum} from "./enums/sports.enum";
 
 @Component({
   selector: 'app-root',
@@ -16,18 +15,17 @@ import { SportService } from './sport.service';
   imports: [RouterOutlet, FormsModule, CommonModule],
 
 })
-export class App implements OnInit, OnDestroy {
+export class App {
   protected readonly title = signal('app-espn-lines');
-  private oddsSubscription$: Subscription = new Subscription;
   private oddsService = inject(NflOddsService);
   sportService = inject(SportService);
   sportKey = this.sportService.sportKey;
+  refreshing = false;
   sports = [
-    { key: 'americanfootball_nfl', label: 'NFL' },
-    { key: 'americanfootball_ncaaf', label: 'NCAAF' },
-    { key: 'basketball_nba', label: 'NBA' },
-    { key: 'basketball_ncaab', label: 'NCAAB' },
-
+    { key: SportsEnum.NFL, label: 'NFL' },
+    { key: SportsEnum.NCAAF, label: 'NCAAF' },
+    { key: SportsEnum.NBA, label: 'NBA' },
+    { key: SportsEnum.NCAAB, label: 'NCAAB' },
     // Add more sports as needed
   ];
 
@@ -35,20 +33,16 @@ export class App implements OnInit, OnDestroy {
     this.sportService.setSportKey(key);
   }
 
-  ngOnInit(): void {
-    const oddsSubscription = {
-      next: (odds: unknown) => {
-        console.log('Current week NFL odds:', odds);
+  onRefreshOdds() {
+    const key = this.sportService.sportKey();
+    this.refreshing = true;
+    this.oddsService.getFreshOdds(key).subscribe({
+      next: () => {
+        this.refreshing = false;
       },
-      error: (err: unknown) => {
-        // console.log(oddsMock)
-        console.error('Error fetching NFL odds:', err);
+      error: () => {
+        this.refreshing = false;
       }
-    }
-    this.oddsSubscription$ = this.oddsService.getCurrentWeekOdds().subscribe(oddsSubscription);
-  }
-
-  ngOnDestroy(): void {
-      this.oddsSubscription$.unsubscribe();
+    });
   }
 }

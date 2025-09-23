@@ -1,18 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { IPickSummary } from './picks-summary.model';
+import { DateService } from '../services/date.service';
+import { PicksSummaryService } from './picks-summary.service';
 
-interface PickSummary {
-  _id: string;
-  userId: { displayName: string };
-  team: string;
-  line: number;
-  season: number;
-  week: number;
-  status: string;
-  createdAt: Date;
-}
 
 @Component({
   selector: 'app-picks-summary',
@@ -23,29 +15,31 @@ interface PickSummary {
   
 })
 export class PicksSummary implements OnInit {
-  picks: PickSummary[] = [];
-  filteredPicks: PickSummary[] = [];
+  picks: IPickSummary[] = [];
+  filteredPicks: IPickSummary[] = [];
   selectedWeek = 1;
   maxWeeks = 18;
 
-  private http = inject(HttpClient);
+  private dateService = inject(DateService);
+  private picksService = inject(PicksSummaryService);
+  currentWeek: number;
 
   ngOnInit() {
-    this.http.get<PickSummary[]>('http://localhost:3000/api/picks/all').subscribe(data => {
+    this.currentWeek = this.dateService.currentWeek();
+    this.maxWeeks = this.dateService.getMaxWeeks();
+    this.selectedWeek = this.currentWeek;
+    this.picksService.getPicksSummary().subscribe(data => {
       this.picks = data;
       this.filterByWeek();
     });
   }
 
   onWeekChange(week: string | number) {
-    this.selectedWeek = typeof week === 'string' ? parseInt(week, 10) : week ;
+    this.selectedWeek = typeof week === 'string' ? parseInt(week, 10) : week;
     this.filterByWeek();
   }
 
   filterByWeek() {
-    console.log(this.picks);
-    console.log(this.selectedWeek);
     this.filteredPicks = this.picks.filter(pick => pick.week === this.selectedWeek);
-    console.log(this.filteredPicks);
   }
 }

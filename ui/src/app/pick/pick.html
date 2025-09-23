@@ -8,7 +8,7 @@
   @if(error) {
     <div class="alert alert-danger">{{ error }}</div>
   }
-  @if(!loading && events.length) {
+  @if(!loading && eventOdds.length) {
     <form (ngSubmit)="submitPick()">
       <div class="mb-3">
         <label for="week-select">Select Week:</label>
@@ -19,7 +19,7 @@
         </select>
       </div>
 
-      @for(event of events; track event.id) {
+      @for(event of eventOdds; track event.id) {
         @if(event.bookmakers.length !== 0) {
           <div class="card mb-4">
             <div class="card-header bg-dark text-light d-flex justify-content-center">
@@ -78,7 +78,7 @@
       </div>
     </form>
   }
-  @if(!loading && !events.length) {
+  @if(!loading && !eventOdds.length) {
     <div class="alert alert-info text-center">No games found for this week.</div>
   }
 </div>

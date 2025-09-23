@@ -9,11 +9,21 @@ export class OddsController {
 
   @Post('current-week')
   async getCurrentWeekOdds(@Body() body: GetOddsDto) {
-    console.log(body)
     const { sportKey } = body;
-    console.log(sportKey);
-    const { rows } = await this.oddsService.fetchNflMainlines(sportKey);
-    console.log(rows);
+    const { rows } = await this.oddsService.fetchSportMainlines(sportKey);
     return rows;
+  }
+
+  @Post('all')
+  async getAllOdds(@Body() body: GetOddsDto) {
+  const { sportKey } = body;
+  return await this.oddsService.getAllOdds(sportKey);
+  }
+
+  @Post('current-week/save')
+  async fetchAndSave(@Body() body: GetOddsDto) {
+    const { sportKey } = body;
+    const result = await this.oddsService.fetchAndSaveSportMainlines(sportKey);
+    return result;
   }
 }

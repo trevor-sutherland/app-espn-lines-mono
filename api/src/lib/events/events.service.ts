@@ -7,7 +7,7 @@ import { EventDto } from './dto/event.dto';
 export class EventsService {
   constructor(private config: ConfigService) {}
 
-  async getNflEvents(sportKey: string): Promise<EventDto[]> {
+  async getSportEvents(sportKey: string): Promise<EventDto[]> {
     const oddsUri = this.config.get<string>('ODDS_URI');
     const apiKey = this.config.get<string>('ODDS_API_KEY');
     const url = `${oddsUri}/sports/${sportKey}/events`;

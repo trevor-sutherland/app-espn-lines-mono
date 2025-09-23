@@ -7,6 +7,10 @@
       (ngModelChange)="sportService.setSportKey($event)">
       <option *ngFor="let sport of sports" [value]="sport.key">{{ sport.label }}</option>
     </select>
+    <button class="btn btn-sm btn-outline-primary mt-2" (click)="onRefreshOdds()" [disabled]="refreshing">
+      <span *ngIf="refreshing" class="spinner-border spinner-border-sm me-1"></span>
+      Refresh Odds
+    </button>
   </div>
 </div>
 <router-outlet></router-outlet>

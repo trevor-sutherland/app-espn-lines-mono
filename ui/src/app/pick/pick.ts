@@ -1,11 +1,18 @@
+import { IEventOdds } from './../models/event-odds.model';
 import { getTeamAbbr } from './../helpers/team-abbreviation';
 import { Component, OnInit, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { normalizeMocks, Event } from './pick.interface';
-import { SportService } from '../sport.service';
+import { normalizeOdds } from './pick.interface';
+import { IEvent } from '../models/event.model';
+import { IOdds } from '../models/odds.model';
+import { SportService } from '../services/sport.service';
+import { NflOddsService } from '../services/sport-odds-service';
+import { forkJoin, ReplaySubject, Subscription, switchMap } from 'rxjs';
+import { SportsEnum } from '../enums/sports.enum';
+import { DateService } from '../services/date.service';
 
 @Component({
   selector: 'app-pick',
@@ -15,73 +22,79 @@ import { SportService } from '../sport.service';
   styleUrl: './pick.scss'
 })
 export class Pick implements OnInit {
-  sportKey = 'americanfootball_nfl'; // default to NFL, can be set from parent component
-  events: Event[] = [];
-  loading = false;
+  sportKey = SportsEnum.NCAAF; // default to NCAAF, can be set from parent component
+  loading = true;
   error: string | null = null;
   selected: { eventId: string; team: string; line: number, week: number, season: number } | null = null;
   submitting = false;
-  useMocks = true; // toggle this to switch between mocks and real API
+  useMocks = false; // toggle this to switch between mocks and real API
   selectedWeek = 1;
-  maxWeeks = 18; // NFL regular season
+  maxWeeks = 18; // default; adjusted per sport
   currentWeekEnd: Date;
+  sportsKeySubject$ = new ReplaySubject<string>(1);
+  sportsKey: string;
+  eventOddsSubscription: Subscription;
   getTeamAbbr = getTeamAbbr;
 
   private http = inject(HttpClient);
   private router = inject(Router);
   private sportService = inject(SportService);
+  private oddsService = inject(NflOddsService);
+  private dateService = inject(DateService);
+  odds: IOdds[] = [];
+  events: IEvent[] = [];
+  eventOdds: IEventOdds[] = [];
 
   constructor() {
-    this.currentWeekEnd = this.getWeekEndDate(this.selectedWeek);
+    // Initialize with a reasonable default; recomputed on init
+    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
     // Reactively update sportKey and fetch events when the signal changes
     effect(() => {
       const newKey = this.sportService.sportKey();
-      if (this.sportKey !== newKey) {
-        this.sportKey = newKey;
-        this.fetchEvents();
+      if (this.sportsKey !== newKey) {
+        this.sportsKey = newKey;
+        this.dateService.recomputeSeasonAndWeek();
+        this.sportsKeySubject$.next(newKey);
       }
     });
   }
 
-  getWeekEndDate(week: number): Date {
-    // NFL week 1 starts with the first full week of September (customize as needed)
-    // For this example, let's use Sept 1, 2025 as the start of week 1
-    const seasonStart = new Date(2025, 8, 1); // September is month 8 (0-based)
-    const weekEnd = new Date(seasonStart);
-    weekEnd.setDate(seasonStart.getDate() + (week - 1) * 7 + 5); // Saturday of the week
-    weekEnd.setHours(23, 59, 59, 999);
-    return weekEnd;
-  }
 
   onWeekChange(week: number) {
     this.selectedWeek = week;
-    this.currentWeekEnd = this.getWeekEndDate(week);
-    this.fetchEvents();
+    this.currentWeekEnd = this.dateService.getWeekEndDate(week);
+    this.setData();
   }
 
   ngOnInit() {
-    this.sportKey = this.sportService.sportKey();
-    this.fetchEvents();
+    this.loading = true;
+    this.sportsKeySubject$.next(this.sportService.sportKey());
+    this.dateService.recomputeSeasonAndWeek();
+    this.setData();
   }
 
-  fetchEvents() {
-    this.loading = true;
-    if (this.useMocks) {
-      this.events = this.setThisWeekEvents(normalizeMocks(this.sportKey));
-      this.loading = false;
-    } else {
-      this.http.post<Event[]>('http://localhost:3000/api/events/', 
-        { sportKey: this.sportKey }).subscribe({
-        next: (data) => {
-          this.events = this.setThisWeekEvents(data);
-          this.loading = false;
-        },
-        error: () => {
-          this.error = 'Could not load events.';
-          this.loading = false;
-        }
-      });
-    }
+    setData(): void {
+    this.eventOddsSubscription = this.sportsKeySubject$.pipe(
+      switchMap((sportsKey) => {
+        console.log('Fetching data for sportKey:', sportsKey, 'week:', this.selectedWeek);
+        return forkJoin({
+          events: this.http.post<IEvent[]>('http://localhost:3000/api/events/', 
+            { sportKey: sportsKey }),
+          odds: this.oddsService.getCurrentWeekOdds(sportsKey)
+        });
+      })
+    ).subscribe({
+      next: ({ events, odds }) => {
+        this.eventOdds = this.setThisWeekEvents(normalizeOdds(odds, events));
+        this.loading = false;
+        console.log('Current week NFL odds:', odds);
+        console.log('Event Odds:', this.eventOdds);
+      },
+      error: (err) => {
+        this.loading = false;
+        console.error('Error fetching events or odds:', err);
+      }
+    });
   }
 
   selectPick(eventId: string, team: string, line: number) {
@@ -118,13 +131,13 @@ export class Pick implements OnInit {
     });
   }
 
-  setThisWeekEvents(events: Event[]): Event[] {
+  setThisWeekEvents(eventOdds: IEventOdds[]): IEventOdds[] {
     // For the selected week, show events from Sunday to Saturday
     const weekStart = new Date(this.currentWeekEnd);
     weekStart.setDate(this.currentWeekEnd.getDate() - 6);
     weekStart.setHours(0, 0, 0, 0);
-    return events.filter(event => {
-      const eventDate = new Date(event.commence_time);
+    return eventOdds.filter(eo => {
+      const eventDate = new Date(eo.commence_time);
       return eventDate >= weekStart && eventDate <= this.currentWeekEnd;
     });
   }
@@ -134,5 +147,4 @@ export class Pick implements OnInit {
     const parts = sportKey.split('_');
     return parts.length > 1 ? parts[1] : sportKey;
   }
-
 }

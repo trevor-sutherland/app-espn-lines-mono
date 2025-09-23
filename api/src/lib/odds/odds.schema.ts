@@ -18,25 +18,30 @@ export class OddsLatest {
   @Prop({ required: true })
   bookmakerTitle: string;
 
-  // Add more fields as needed for picks (e.g., market, selection, team, line, price)
-  @Prop()
-  market?: string;
+  @Prop({ required: true })
+  market: string; // 'h2h' | 'spreads' | 'totals'
+
+  @Prop({ required: true })
+  selection: string; // e.g., 'home' | 'away' | 'draw' | team name
 
   @Prop()
-  selection?: string;
+  team?: string; // team name when applicable (spreads/totals selection mapping)
 
-  @Prop()
-  team?: string;
+  @Prop({ type: Number, default: null })
+  line: number | null; // spread or total line; null for h2h
 
-  @Prop()
-  line?: number;
+  @Prop({ required: true })
+  price: number; // American price
 
-  @Prop()
-  price?: number;
-
-  @Prop()
-  lastUpdate?: string;
+  @Prop({ required: true })
+  lastUpdate: string; // ISO timestamp from Odds API (bookmaker.market.last_update)
 }
 
 export type OddsLatestDocument = OddsLatest & Document;
 export const OddsLatestSchema = SchemaFactory.createForClass(OddsLatest);
+
+// Ensure one latest row per unique quote
+OddsLatestSchema.index(
+  { sport: 1, eventId: 1, bookmakerKey: 1, market: 1, selection: 1, team: 1 },
+  { unique: true }
+);
