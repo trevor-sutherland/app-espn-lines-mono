@@ -54,6 +54,11 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "buildTarget": "ui:build:development",
+        "port": 4200,
+        "host": "0.0.0.0"
+      },
       "configurations": {
         "production": {
           "buildTarget": "ui:build:production"

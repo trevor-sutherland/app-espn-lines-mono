@@ -1,138 +1,195 @@
 import { IEventOdds } from './../models/event-odds.model';
 import { getTeamAbbr } from './../helpers/team-abbreviation';
-import { Component, OnInit, inject, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { normalizeOdds } from './pick.interface';
 import { IEvent } from '../models/event.model';
-import { IOdds } from '../models/odds.model';
 import { SportService } from '../services/sport.service';
 import { NflOddsService } from '../services/sport-odds-service';
-import { forkJoin, ReplaySubject, Subscription, switchMap } from 'rxjs';
+import { forkJoin, of, ReplaySubject, Subscription, switchMap, catchError } from 'rxjs';
 import { SportsEnum } from '../enums/sports.enum';
 import { DateService } from '../services/date.service';
+import { AuthService } from '../services/auth.service';
+
+type SelectedPick = {
+  eventId: string;
+  team: string;
+  line: number | null;
+  week: number;
+  season: number;
+};
+
+type MyPickResponse = {
+  pick: {
+    eventId: string;
+    team: string;
+    line: number | null;
+    season: number;
+    week: number;
+  } | null;
+};
 
 @Component({
   selector: 'app-pick',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './pick.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './pick.scss'
 })
-export class Pick implements OnInit {
-  sportKey = SportsEnum.NCAAF; // default to NCAAF, can be set from parent component
+export class Pick implements OnInit, OnDestroy {
+  sportKey = SportsEnum.NCAAF;
   loading = true;
   error: string | null = null;
-  selected: { eventId: string; team: string; line: number, week: number, season: number } | null = null;
+  selected: SelectedPick | null = null;
+  /** True when this user already submitted a pick for the selected week. */
+  weekLocked = false;
   submitting = false;
-  useMocks = false; // toggle this to switch between mocks and real API
   selectedWeek = 1;
-  maxWeeks = 18; // default; adjusted per sport
+  maxWeeks = 18;
   currentWeekEnd: Date;
   sportsKeySubject$ = new ReplaySubject<string>(1);
   sportsKey: string;
-  eventOddsSubscription: Subscription;
+  eventOddsSubscription: Subscription | null = null;
   getTeamAbbr = getTeamAbbr;
 
   private http = inject(HttpClient);
-  private router = inject(Router);
   private sportService = inject(SportService);
   private oddsService = inject(NflOddsService);
   private dateService = inject(DateService);
-  odds: IOdds[] = [];
-  events: IEvent[] = [];
+  private auth = inject(AuthService);
   eventOdds: IEventOdds[] = [];
 
   constructor() {
-    // Initialize with a reasonable default; recomputed on init
     this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
-    // Reactively update sportKey and fetch events when the signal changes
     effect(() => {
       const newKey = this.sportService.sportKey();
       if (this.sportsKey !== newKey) {
         this.sportsKey = newKey;
+        this.sportKey = newKey as SportsEnum;
         this.dateService.recomputeSeasonAndWeek();
+        this.selectedWeek = this.dateService.getSelectedWeek();
+        this.maxWeeks = this.dateService.getMaxWeeks();
+        this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
         this.sportsKeySubject$.next(newKey);
       }
     });
   }
 
-
-  onWeekChange(week: number) {
-    this.selectedWeek = week;
-    this.currentWeekEnd = this.dateService.getWeekEndDate(week);
+  onWeekChange(week: number | string) {
+    this.selectedWeek = Number(week);
+    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+    this.selected = null;
+    this.weekLocked = false;
     this.setData();
   }
 
   ngOnInit() {
     this.loading = true;
-    this.sportsKeySubject$.next(this.sportService.sportKey());
     this.dateService.recomputeSeasonAndWeek();
+    this.selectedWeek = this.dateService.getSelectedWeek();
+    this.maxWeeks = this.dateService.getMaxWeeks();
+    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+    this.sportsKeySubject$.next(this.sportService.sportKey());
     this.setData();
   }
 
-    setData(): void {
+  ngOnDestroy(): void {
+    this.eventOddsSubscription?.unsubscribe();
+  }
+
+  setData(): void {
+    this.eventOddsSubscription?.unsubscribe();
+    this.loading = true;
+    this.error = null;
+
     this.eventOddsSubscription = this.sportsKeySubject$.pipe(
       switchMap((sportsKey) => {
-        console.log('Fetching data for sportKey:', sportsKey, 'week:', this.selectedWeek);
+        const season = this.dateService.getSeasonYear();
+        const week = Number(this.selectedWeek);
         return forkJoin({
-          events: this.http.post<IEvent[]>('http://localhost:3000/api/events/', 
-            { sportKey: sportsKey }),
-          odds: this.oddsService.getCurrentWeekOdds(sportsKey)
+          events: this.http.post<IEvent[]>('http://localhost:3000/api/events/', {
+            sportKey: sportsKey,
+          }),
+          odds: this.oddsService.getCurrentWeekOdds(sportsKey),
+          myPick: this.http
+            .get<MyPickResponse>('http://localhost:3000/api/picks/mine', {
+              headers: this.auth.authHeaders(),
+              params: { season: String(season), week: String(week) },
+            })
+            .pipe(catchError(() => of({ pick: null } as MyPickResponse))),
         });
-      })
+      }),
     ).subscribe({
-      next: ({ events, odds }) => {
+      next: ({ events, odds, myPick }) => {
         this.eventOdds = this.setThisWeekEvents(normalizeOdds(odds, events));
+        this.applyExistingPick(myPick.pick);
         this.loading = false;
-        console.log('Current week NFL odds:', odds);
-        console.log('Event Odds:', this.eventOdds);
       },
       error: (err) => {
         this.loading = false;
+        this.error = err.error?.message || 'Could not load games.';
         console.error('Error fetching events or odds:', err);
-      }
+      },
     });
+  }
+
+  private applyExistingPick(
+    pick: MyPickResponse['pick'],
+  ): void {
+    if (!pick) {
+      this.weekLocked = false;
+      this.selected = null;
+      return;
+    }
+    this.weekLocked = true;
+    this.selected = {
+      eventId: pick.eventId,
+      team: pick.team,
+      line: pick.line,
+      week: pick.week,
+      season: pick.season,
+    };
   }
 
   selectPick(eventId: string, team: string, line: number) {
-    this.selected = { eventId, team, line, week: this.selectedWeek, season: new Date().getFullYear() };
-    console.log(this.selected)
+    if (this.weekLocked || this.submitting) return;
+    this.selected = {
+      eventId,
+      team,
+      line,
+      week: Number(this.selectedWeek),
+      season: this.dateService.getSeasonYear(),
+    };
   }
 
   submitPick() {
-    if (!this.selected) return;
+    if (!this.selected || this.weekLocked) return;
     this.submitting = true;
-    const token = localStorage.getItem('jwtToken');
-    console.log(token);
-    const headers = new HttpHeaders({
-      Authorization: `Bearer ${token}`
-    });
+    this.error = null;
+    const headers = this.auth.authHeaders();
     this.http.post('http://localhost:3000/api/picks', {
       ...this.selected,
-      // Add user info if needed (e.g., from JWT/localStorage)
     }, { headers }).subscribe({
       next: () => {
         this.submitting = false;
-        // Redirect to picks summary page
-        // this.router.navigate(['/picks-summary']);
-        console.log('Pick submitted successfully');
+        this.weekLocked = true;
       },
       error: (err) => {
         this.submitting = false;
-        if (err.error?.message?.includes('already made a pick')) {
-          this.router.navigate(['/picks-summary']);
-        } else {
-          this.error = err.error?.message || 'Could not submit pick.';
+        if (err.status === 409) {
+          // Already locked on server — reload locked state instead of navigating away
+          this.setData();
+          return;
         }
-      }
+        this.error = err.error?.message || 'Could not submit pick.';
+      },
     });
   }
 
   setThisWeekEvents(eventOdds: IEventOdds[]): IEventOdds[] {
-    // For the selected week, show events from Sunday to Saturday
     const weekStart = new Date(this.currentWeekEnd);
     weekStart.setDate(this.currentWeekEnd.getDate() - 6);
     weekStart.setHours(0, 0, 0, 0);

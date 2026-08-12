@@ -16,6 +16,10 @@ export class Pick {
   @Prop({ required: true }) lockedAt: Date;
   @Prop({ default: 'pending', enum: ['pending', 'won', 'lost', 'void'] })
   status: string;
+
+  /** When true: win = +2 points, loss = −1. Defaults false for live picks. */
+  @Prop({ default: false })
+  supercharged: boolean;
 }
 export type PickDocument = Pick & Document;
 export const PickSchema = SchemaFactory.createForClass(Pick);

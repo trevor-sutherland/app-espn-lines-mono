@@ -1,0 +1,24 @@
+<div class="container mt-5" style="max-width: 480px">
+  <h2 class="mb-4 text-center">Email confirmation</h2>
+
+  @if (loading) {
+    <p class="text-center text-muted">Confirming your email change…</p>
+  } @else if (error) {
+    <div class="alert alert-danger">{{ error }}</div>
+    <p class="text-center">
+      <a routerLink="/account">Back to Account</a>
+      ·
+      <a routerLink="/login">Log in</a>
+    </p>
+  } @else {
+    <div class="alert alert-success">
+      Email was changed from <strong>{{ previousEmail }}</strong> to
+      <strong>{{ email }}</strong>.
+    </div>
+    <p class="text-center">
+      <a routerLink="/pick">Continue to Picks</a>
+      ·
+      <a routerLink="/account">Account</a>
+    </p>
+  }
+</div>

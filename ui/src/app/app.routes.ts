@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard, authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -17,19 +18,46 @@ export const routes: Routes = [
       import('./signup/signup').then(m => m.Signup),
   },
   {
-    path: 'pick',
-    loadComponent: () =>
-      import('./pick/pick').then(m => m.Pick),
-  },
-  {
     path: 'reset-password',
     loadComponent: () =>
       import('./reset-password/reset-password').then(m => m.ResetPasswordComponent),
   },
-    {
+  {
+    path: 'confirm-email-change',
+    loadComponent: () =>
+      import('./confirm-email-change/confirm-email-change').then(
+        (m) => m.ConfirmEmailChangeComponent,
+      ),
+  },
+  {
+    path: 'pick',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pick/pick').then(m => m.Pick),
+  },
+  {
     path: 'picks-summary',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./picks-summary/picks-summary').then(m => m.PicksSummary),
+  },
+  {
+    path: 'results',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./results/results').then(m => m.ResultsComponent),
+  },
+  {
+    path: 'account',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./account/account').then(m => m.AccountComponent),
+  },
+  {
+    path: 'admin/users',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./admin-users/admin-users').then(m => m.AdminUsersComponent),
   },
   {
     path: '',

@@ -1,20 +1,37 @@
 <div class="container mt-4">
-  <h2 class="mb-4 text-center">All Picks</h2>
-  <div class="mb-3">
-    <label for="week-select">Select Week:</label>
-    <select
-      id="week-select"
-      name="week"
-      [(ngModel)]="selectedWeek"
-      (change)="onWeekChange(selectedWeek)"
-      class="form-select"
-      [ngModelOptions]="{standalone: true}"
-    >
-      <option *ngFor="let week of [].constructor(maxWeeks); let i = index" [value]="i + 1">
-        Week {{ i + 1 }}
-      </option>
-    </select>
+  <h2 class="mb-4 text-center">Picks by Week</h2>
+
+  <div class="row g-3 mb-3">
+    <div class="col-auto">
+      <label class="form-label" for="season-select">Season</label>
+      <select
+        id="season-select"
+        name="season"
+        class="form-select"
+        [(ngModel)]="selectedSeason"
+        (ngModelChange)="onSeasonChange($event)"
+      >
+        @for (y of seasons; track y) {
+          <option [value]="y">{{ y }}</option>
+        }
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label" for="week-select">Week</label>
+      <select
+        id="week-select"
+        name="week"
+        class="form-select"
+        [(ngModel)]="selectedWeek"
+        (ngModelChange)="onWeekChange($event)"
+      >
+        @for (week of [].constructor(maxWeeks); track week; let i = $index) {
+          <option [value]="i + 1">Week {{ i + 1 }}</option>
+        }
+      </select>
+    </div>
   </div>
+
   <div class="table-responsive">
     <table class="table table-striped table-bordered align-middle">
       <thead class="table-dark">
@@ -26,13 +43,13 @@
         </tr>
       </thead>
       <tbody>
-        @for(pick of filteredPicks; track pick._id) {
-        <tr>
-          <td>{{ pick.userId.displayName }}</td>
-          <td>{{ pick.team }}</td>
-          <td>{{ pick.line }}</td>
-          <td>{{ pick.status }}</td>
-        </tr>
+        @for (pick of filteredPicks; track pick._id) {
+          <tr>
+            <td>{{ pick.userId.displayName }}</td>
+            <td>{{ pick.team }}</td>
+            <td>{{ pick.line }}</td>
+            <td>{{ pick.status }}</td>
+          </tr>
         }
       </tbody>
     </table>

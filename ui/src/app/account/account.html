@@ -1,0 +1,96 @@
+<div class="container mt-4" style="max-width: 420px">
+  <h2 class="mb-4 text-center">Account</h2>
+
+  <form (ngSubmit)="onSaveDisplayName($event)" #nameForm="ngForm" class="mb-5" autocomplete="off">
+    @if (nameError) {
+      <div class="alert alert-danger">{{ nameError }}</div>
+    }
+    @if (nameSuccess) {
+      <div class="alert alert-success">{{ nameSuccess }}</div>
+    }
+
+    <div class="mb-3">
+      <label for="displayName" class="form-label">Display name</label>
+      <input
+        type="text"
+        class="form-control"
+        id="displayName"
+        name="displayName"
+        required
+        [(ngModel)]="displayName"
+        [disabled]="nameLoading"
+        autocomplete="nickname"
+      />
+      <div class="form-text">Shown on Weekly Summary and Results.</div>
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary w-100"
+      [disabled]="nameLoading || nameForm.invalid"
+    >
+      @if (nameLoading) {
+        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+      }
+      Save display name
+    </button>
+  </form>
+
+  <hr class="mb-4" />
+
+  <h3 class="h5 mb-3">Email</h3>
+
+  <form (ngSubmit)="onRequestEmailChange($event)" #emailForm="ngForm" autocomplete="off">
+    @if (emailError) {
+      <div class="alert alert-danger">{{ emailError }}</div>
+    }
+    @if (emailSuccess) {
+      <div class="alert alert-success">{{ emailSuccess }}</div>
+    }
+    @if (pendingEmail) {
+      <div class="alert alert-warning">
+        Pending confirmation for <strong>{{ pendingEmail }}</strong>.
+        Current login email remains <strong>{{ currentEmail }}</strong> until you
+        click the link sent to the new address.
+      </div>
+    }
+
+    <div class="mb-3">
+      <label class="form-label">Current email</label>
+      <input
+        type="email"
+        class="form-control"
+        [value]="currentEmail"
+        disabled
+      />
+    </div>
+
+    <div class="mb-3">
+      <label for="email" class="form-label">New email address</label>
+      <input
+        type="email"
+        class="form-control"
+        id="email"
+        name="email"
+        required
+        [(ngModel)]="email"
+        [disabled]="emailLoading"
+        autocomplete="email"
+      />
+      <div class="form-text">
+        We’ll email a confirmation link to the new address. Nothing changes until you confirm.
+      </div>
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn-primary w-100"
+      [disabled]="emailLoading || emailForm.invalid"
+    >
+      @if (emailLoading) {
+        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+      }
+      Send confirmation email
+    </button>
+  </form>
+</div>

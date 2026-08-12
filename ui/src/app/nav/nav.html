@@ -1,0 +1,94 @@
+@if (auth.isLoggedIn()) {
+  <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom mb-3">
+    <div class="container-fluid">
+      <a class="navbar-brand" routerLink="/pick">ESPN Lines</a>
+
+      <div class="navbar-nav me-auto flex-row gap-2 flex-wrap">
+        <a
+          class="nav-link"
+          routerLink="/pick"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          Picks
+        </a>
+        <a
+          class="nav-link"
+          routerLink="/picks-summary"
+          routerLinkActive="active"
+        >
+          Weekly Summary
+        </a>
+        <a
+          class="nav-link"
+          routerLink="/results"
+          routerLinkActive="active"
+        >
+          Results
+        </a>
+        <a
+          class="nav-link"
+          routerLink="/account"
+          routerLinkActive="active"
+        >
+          Account
+        </a>
+        @if (auth.isAdmin()) {
+          <a
+            class="nav-link"
+            routerLink="/admin/users"
+            routerLinkActive="active"
+          >
+            Users
+          </a>
+        }
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <label class="visually-hidden" for="sport-select">Select sport</label>
+        <select
+          id="sport-select"
+          class="form-select form-select-sm w-auto"
+          [ngModel]="sportService.sportKey()"
+          (ngModelChange)="sportService.setSportKey($event)"
+        >
+          @for (sport of sports; track sport.key) {
+            <option [value]="sport.key">{{ sport.label }}</option>
+          }
+        </select>
+
+        @if (auth.isAdmin()) {
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            (click)="onRefreshOdds()"
+            [disabled]="refreshing"
+          >
+            @if (refreshing) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Refresh Odds
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            (click)="onSyncResults()"
+            [disabled]="syncingResults"
+          >
+            @if (syncingResults) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Sync Results
+          </button>
+        }
+
+        <span class="navbar-text small text-muted d-none d-md-inline">
+          {{ auth.session()?.email }}
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="logout()">
+          Log out
+        </button>
+      </div>
+    </div>
+  </nav>
+}

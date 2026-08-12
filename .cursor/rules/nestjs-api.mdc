@@ -1,0 +1,17 @@
+---
+description: NestJS API conventions for api/ (Mongoose, JWT, Odds API)
+globs: api/**
+alwaysApply: false
+---
+
+# Nest API
+
+- Keep the shell thin: `api/src/main.ts`, `api/src/app/app.module.ts`, and global config only.
+- Implement features in `api/src/lib/<domain>/` (module, controller, service, mongoose schema, `dto/`).
+- Wire feature modules through `api/src/lib/api.module.ts`.
+- Global API prefix is `api` (port 3000). CORS expects the UI on `:4200`.
+- Use `class-validator` / `class-transformer` DTOs. Prefer a global `ValidationPipe` with `whitelist` (and `forbidNonWhitelisted` when adding or tightening validation).
+- Persistence is **MongoDB / Mongoose** (`MONGO_URI`; local via `docker-compose.yml`). Schemas use `@Schema` / `@Prop` / `SchemaFactory`.
+- Auth: JWT + `passport-jwt` + argon2. Protect mutating pick routes with the existing JWT guard.
+- External odds: The Odds API via the `odds` service. Keep keys in env (`ODDS_API_*`), not in source.
+- Local: `npm run serve:api`. Do not guess nx targets — use `npx nx show project @app-espn-lines-mono/api --json`.

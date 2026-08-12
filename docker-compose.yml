@@ -1,0 +1,60 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: espn-lines-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  api:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/espn-lines
+      WEB_APP_URL: http://localhost:4200
+      PORT: '3000'
+      NX_DAEMON: 'false'
+      NX_CACHE_DIRECTORY: /tmp/nx-cache-api
+      NX_WORKSPACE_DATA_DIRECTORY: /tmp/nx-workspace-api
+    ports:
+      - '3000:3000'
+    command: ['sh', 'scripts/compose-serve.sh', 'api']
+    depends_on:
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+
+  ui:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    environment:
+      # Must override any PORT from .env — Angular/Vite use PORT for the UI server
+      PORT: '4200'
+      NX_DAEMON: 'false'
+      NX_CACHE_DIRECTORY: /tmp/nx-cache-ui
+      NX_WORKSPACE_DATA_DIRECTORY: /tmp/nx-workspace-ui
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+    ports:
+      - '4200:4200'
+    command: ['sh', 'scripts/compose-serve.sh', 'ui']
+    depends_on:
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  # Linux modules for the node:22 containers (shadows host ./node_modules).
+  # Auto-refreshed by scripts/compose-serve.sh when package-lock.json changes.
+  node_modules:

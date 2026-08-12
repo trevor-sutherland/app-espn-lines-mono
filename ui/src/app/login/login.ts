@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { inject, OnDestroy } from '@angular/core';
 import { AuthService } from '../services/auth.service';
@@ -10,8 +10,9 @@ import { LoginResponse } from './login-response.interface';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './login.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.scss'
 })
 export class Login implements OnDestroy {
@@ -35,7 +36,6 @@ export class Login implements OnDestroy {
         console.log(res)
         if (res && res.user && res.user.jwtToken) {
           this.success = 'Login successful!';
-          localStorage.setItem('jwtToken', res.user.jwtToken);
           this.loading = false;
           this.router.navigate(['/pick']);
         } else {

@@ -21,6 +21,7 @@ export class PicksService {
         week: dto.week,
         lockedAt: dto.lockedAt,
         status: 'pending',
+        supercharged: false,
       });
       return doc;
     } catch (e: any) {

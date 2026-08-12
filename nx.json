@@ -63,9 +63,11 @@
       "cache": true,
       "inputs": [
         "default",
+        "^default",
         "{workspaceRoot}/.eslintrc.json",
         "{workspaceRoot}/.eslintignore",
-        "{workspaceRoot}/eslint.config.mjs"
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*"
       ]
     }
   },
@@ -79,5 +81,6 @@
     "@nx/angular:component": {
       "style": "css"
     }
-  }
+  },
+  "analytics": false
 }

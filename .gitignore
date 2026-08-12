@@ -9,6 +9,8 @@ out-tsc
 node_modules
 /ui/public/assets/ncaaf
 /ui/public/assets/nfl
+/logos-script/.cache
+/logos-script/node_modules
 # IDEs and editors
 /.idea
 .project
@@ -45,3 +47,8 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 **/.env
 .angular
+
+.claude/worktrees
+.nx/polygraph
+.nx/self-healing
+.nx/migrate-runs

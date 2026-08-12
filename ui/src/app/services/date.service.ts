@@ -40,6 +40,12 @@ export class DateService {
     return this.maxWeeks;
   }
 
+  /** Season year for pick’em (July+ → current calendar year; earlier → previous). */
+  getSeasonYear(today: Date = new Date()): number {
+    const month = today.getMonth();
+    return month >= 6 ? today.getFullYear() : today.getFullYear() - 1;
+  }
+
   getSportKey(): string {
     return this.sportKey;
   }

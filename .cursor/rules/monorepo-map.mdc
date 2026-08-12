@@ -1,0 +1,53 @@
+---
+description: ESPN Lines Nx monorepo layout, commands, and boundaries
+alwaysApply: true
+---
+
+# Repo layout
+
+| Area | Path | Nx project |
+|------|------|------------|
+| Angular UI | `ui/` | `ui` |
+| Nest API | `api/` | `@app-espn-lines-mono/api` |
+| API features | `api/src/lib/<domain>/` | (inside api) |
+| Shared packages | `packages/*` | (empty; future npm workspaces) |
+| Local stack | `docker-compose.yml` | Mongo + API + UI |
+
+API domains under `api/src/lib/`: auth, users, odds, events, picks, results, mailer.
+
+# Commands (always via npm + nx)
+
+```sh
+# Full local stack (Mongo + API + UI)
+npm run compose:up
+# Wipe compose node_modules volume after major lockfile upgrades if needed:
+npm run compose:fresh
+
+npm run compose:down
+
+# Host-only apps with Mongo in Docker
+docker compose up mongodb
+npm run serve:api
+npm run serve:ui
+
+npx nx show project ui --json
+npx nx show project @app-espn-lines-mono/api --json
+npx nx run-many -t lint,build
+```
+
+Copy `.env.example` to `.env` and fill secrets before starting the API.
+
+Angular 22 requires Node.js 22+ (CI and compose use `node:22`).
+
+# Do not
+
+- Invent Nx targets — resolve with `npx nx show project <name> --json`
+- Assume an `apps/` / `libs/` layout (that is platform-nx-monorepo)
+- Put shared packages at repo root — use `packages/*` when extracting shared code
+- Assume a test runner is configured (Angular generators use `unitTestRunner: none`)
+
+# Stack-specific rules
+
+- Angular UI: `.cursor/rules/angular-ui.mdc`
+- Nest API: `.cursor/rules/nestjs-api.mdc`
+- Bootstrap + forms: `.cursor/rules/bootstrap-angular-forms.mdc`

@@ -6,6 +6,7 @@ import {
   Req,
   ConflictException,
   Get,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PicksService } from './picks.service';
@@ -65,6 +66,45 @@ export class PicksController {
   async getAllPicks() {
     // Populate userId with displayName from users collection
     return await this.picksService.getAllPicksWithUser();
+  }
+
+  /** Current user's pick for a season/week (null if none). */
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  async getMyPick(
+    @Req() req: Request,
+    @Query('season') seasonRaw?: string,
+    @Query('week') weekRaw?: string,
+  ) {
+    const user = req.user as { userId?: string; sub?: string };
+    const userId = user.userId || user.sub;
+    if (!userId) throw new ConflictException('User not authenticated');
+
+    const fallback = getCurrentSeasonAndWeek();
+    const season = seasonRaw ? Number(seasonRaw) : fallback.season;
+    const week = weekRaw ? Number(weekRaw) : fallback.week;
+
+    const existing = await this.picksService.findOneByUserSeasonWeek(
+      userId,
+      season,
+      week,
+    );
+    if (!existing) {
+      return { pick: null, season, week };
+    }
+    return {
+      pick: {
+        eventId: existing.eventId,
+        team: existing.team,
+        line: existing.line,
+        season: existing.season,
+        week: existing.week,
+        status: existing.status,
+        lockedAt: existing.lockedAt,
+      },
+      season,
+      week,
+    };
   }
 
   @Get('has-picked')

@@ -8,20 +8,36 @@
   @if(error) {
     <div class="alert alert-danger">{{ error }}</div>
   }
+  @if(!loading) {
+    <div class="mb-3">
+      <label for="week-select" class="form-label">Select Week:</label>
+      <select
+        id="week-select"
+        name="week"
+        class="form-select"
+        [ngModel]="selectedWeek"
+        (ngModelChange)="onWeekChange($event)"
+      >
+        @for(week of [].constructor(maxWeeks); track $index) {
+          <option [ngValue]="$index + 1">Week {{ $index + 1 }}</option>
+        }
+      </select>
+    </div>
+  }
+  @if(!loading && weekLocked && selected) {
+    <div class="alert alert-success text-center">
+      Week {{ selected.week }} is locked. Your pick:
+      <strong>{{ selected.team }}</strong>
+      @if (selected.line != null) {
+        <span>({{ selected.line > 0 ? '+' : '' }}{{ selected.line }})</span>
+      }
+    </div>
+  }
   @if(!loading && eventOdds.length) {
     <form (ngSubmit)="submitPick()">
-      <div class="mb-3">
-        <label for="week-select">Select Week:</label>
-        <select id="week-select" name="week" [(ngModel)]="selectedWeek" (change)="onWeekChange(selectedWeek)" class="form-select">
-          @for(week of [].constructor(maxWeeks); track $index) {
-            <option [value]="$index + 1">Week {{ $index + 1 }}</option>
-          }
-        </select>
-      </div>
-
       @for(event of eventOdds; track event.id) {
         @if(event.bookmakers.length !== 0) {
-          <div class="card mb-4">
+          <div class="card mb-4" [class.border-success]="weekLocked && selected?.eventId === event.id">
             <div class="card-header bg-dark text-light d-flex justify-content-center">
               <span>{{ event.commence_time | date:'EEEE MMM dd hh:mm a' }}</span>
             </div>
@@ -39,7 +55,7 @@
                   <tbody>
                     @for(market of bookmaker.markets; track market.key) {
                       @for(outcome of market.outcomes; track outcome.name) {
-                        <tr>
+                        <tr [class.table-success]="weekLocked && selected?.eventId === event.id && selected?.team === outcome.name">
                           <td class="text-center" style="width:5%;">
                             @if(getTeamAbbr(outcome.name, sportKey)) {
                               <img
@@ -57,7 +73,7 @@
                               [value]="event.id + outcome.name + bookmaker.key + market.key"
                               [checked]="selected?.eventId === event.id && selected?.team === outcome.name"
                               (change)="selectPick(event.id, outcome.name, outcome.point)"
-                              [disabled]="submitting" />
+                              [disabled]="submitting || weekLocked" />
                           </td>
                         </tr>
                       }
@@ -71,10 +87,16 @@
       }
 
       <div class="text-center">
-        <button class="btn btn-primary" type="submit" [disabled]="!selected || submitting">
-          @if(submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-          Submit Pick
-        </button>
+        @if (weekLocked) {
+          <button class="btn btn-secondary" type="button" disabled>
+            Pick locked for this week
+          </button>
+        } @else {
+          <button class="btn btn-primary" type="submit" [disabled]="!selected || submitting">
+            @if(submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+            Submit Pick
+          </button>
+        }
       </div>
     </form>
   }

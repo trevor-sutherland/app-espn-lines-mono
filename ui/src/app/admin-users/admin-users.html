@@ -1,0 +1,134 @@
+<div class="container py-4">
+  <h1>User access</h1>
+  <p class="text-muted">
+    Approve new signups, toggle admin, or deactivate accounts (users stay in the list).
+  </p>
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label" for="user-search">Search</label>
+      <input
+        id="user-search"
+        type="search"
+        class="form-control"
+        placeholder="Search email or display name"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="status-filter">Status</label>
+      <select
+        id="status-filter"
+        class="form-select"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="onStatusFilterChange($event)"
+      >
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="text-center my-5">
+      <div class="spinner-border" role="status"></div>
+      <p class="mt-2 text-muted">Loading users…</p>
+    </div>
+  } @else if (!filteredUsers().length) {
+    <p class="text-muted">No users match your filters.</p>
+  } @else {
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Admin</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of filteredUsers(); track user.id) {
+            <tr [class.table-secondary]="user.active === false">
+              <td>{{ user.email }}</td>
+              <td>{{ user.displayName }}</td>
+              <td>
+                @if (!user.approved) {
+                  <span class="badge text-bg-warning">Pending</span>
+                } @else if (user.active === false) {
+                  <span class="badge text-bg-secondary">Inactive</span>
+                } @else {
+                  <span class="badge text-bg-success">Active</span>
+                }
+              </td>
+              <td>
+                <div class="form-check form-switch">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    [id]="'admin-' + user.id"
+                    [checked]="user.role === 'admin'"
+                    [disabled]="busyUserId() === user.id || (isSelf(user) && user.role === 'admin')"
+                    (change)="toggleAdmin(user, $any($event.target).checked)"
+                  />
+                  <label class="form-check-label" [for]="'admin-' + user.id">Admin</label>
+                </div>
+              </td>
+              <td class="text-nowrap">
+                @if (!user.approved) {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-success me-1"
+                    [disabled]="busyUserId() === user.id"
+                    (click)="approve(user)"
+                  >
+                    Approve
+                  </button>
+                } @else if (!isSelf(user) && user.active !== false) {
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-warning me-1"
+                    [disabled]="busyUserId() === user.id"
+                    (click)="deny(user)"
+                  >
+                    Deny
+                  </button>
+                }
+                @if (!isSelf(user)) {
+                  @if (user.active === false) {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-success"
+                      [disabled]="busyUserId() === user.id"
+                      (click)="reactivate(user)"
+                    >
+                      Activate
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      [disabled]="busyUserId() === user.id"
+                      (click)="deactivate(user)"
+                    >
+                      Deactivate
+                    </button>
+                  }
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

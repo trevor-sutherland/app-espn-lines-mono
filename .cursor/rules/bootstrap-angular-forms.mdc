@@ -1,0 +1,28 @@
+---
+description: Bootstrap 5.3 styling and Template-driven Angular forms for UI
+globs: ui/**
+alwaysApply: false
+---
+
+# Bootstrap + forms
+
+## Styling
+
+- Style UI with [Bootstrap 5.3](https://getbootstrap.com/docs/5.3/) via `ui/src/styles.scss` (`form-control`, `form-select`, `form-label`, `btn`, grid, utilities).
+- Use SCSS for component `styleUrl` / colocated styles. Override Bootstrap sparingly.
+- Do not add Bootstrap’s JS bundle or invent a parallel design system when Bootstrap covers the need.
+
+## Forms
+
+- Existing screens use **Template-driven forms** (`FormsModule` / `[(ngModel)]`) — match that for auth and pick flows unless asked to migrate.
+- Keep markup semantic: real `<label>` / accessible names.
+- Mark required fields clearly; disable primary submit when required values are missing or the form is invalid.
+- Do **not** introduce Signal Forms or Reactive Forms migrations unless the user explicitly asks.
+
+## Example (template-driven)
+
+```html
+<label class="form-label" for="email">Email</label>
+<input id="email" name="email" class="form-control" type="email" required [(ngModel)]="email" />
+<button type="submit" class="btn btn-primary" [disabled]="!email">Save</button>
+```
