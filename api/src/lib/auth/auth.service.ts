@@ -190,7 +190,7 @@ export class AuthService implements OnModuleInit {
     try {
       const result = await this.mailerService.sendMail({
         to: normalized,
-        subject: 'Confirm your new email — ESPN Lines',
+        subject: 'Confirm your new email — Spreadhead Picks',
         template: 'email-change',
         context: {
           url: confirmUrl,
@@ -294,7 +294,7 @@ export class AuthService implements OnModuleInit {
       const webAppUrl = process.env.WEB_APP_URL || 'http://localhost:4200';
       const result = await this.mailerService.sendMail({
         to: normalized,
-        subject: 'Password Reset — ESPN Lines',
+        subject: 'Password Reset — Spreadhead Picks',
         template: 'password-reset',
         context: {
           url: `${webAppUrl}/reset-password?token=${token}&email=${encodeURIComponent(normalized)}`,

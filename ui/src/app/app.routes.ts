@@ -60,6 +60,12 @@ export const routes: Routes = [
       import('./admin-users/admin-users').then(m => m.AdminUsersComponent),
   },
   {
+    path: 'admin/pot',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./admin-pot/admin-pot').then(m => m.AdminPotComponent),
+  },
+  {
     path: '',
     pathMatch: 'full',
     redirectTo: 'login',

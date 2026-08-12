@@ -1,5 +1,7 @@
 # AGENTS
 
+# Spreadhead Picks
+
 Sports odds / weekly pick’em (NFL, NCAAF, NBA, NCAAB) using The Odds API and MongoDB.
 
 Package manager is **npm**. Workspaces: `packages/*`, `api`. Angular 22 requires **Node.js 22+** (see [version compatibility](https://angular.dev/reference/versions)).

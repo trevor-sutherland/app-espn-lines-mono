@@ -16,7 +16,7 @@ import { join } from 'path';
         const port = Number(config.get<string>('SMTP_PORT')) || 587;
         const from =
           config.get<string>('SMTP_FROM') ||
-          (user ? `"ESPN Lines" <${user}>` : '"ESPN Lines" <noreply@localhost>');
+          (user ? `"Spreadhead Picks" <${user}>` : '"Spreadhead Picks" <noreply@localhost>');
 
         if (!host || !user || !pass) {
           Logger.warn(
