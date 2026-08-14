@@ -9,18 +9,29 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-    app.enableCors({
-    origin: 'http://localhost:4200', // or true for all origins
+  const corsOrigins = (process.env.WEB_APP_URL || 'http://localhost:4200')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({
+    origin: corsOrigins,
     credentials: true,
   });
   const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
-  const port = process.env.PORT || 3000;
-  // Bind all interfaces so Docker port publishing can reach the API
+  app.setGlobalPrefix(globalPrefix, { exclude: ['health'] });
+  // Cloud Run injects PORT (default 8080). Local/compose default to 3000.
+  const port = Number(process.env.PORT) || 3000;
+  // Bind all interfaces so Docker / Cloud Run can reach the API
   await app.listen(port, '0.0.0.0');
   Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
+    `Application is running on: http://0.0.0.0:${port}/${globalPrefix}`
   );
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  Logger.error(
+    err instanceof Error ? err.stack ?? err.message : String(err),
+    'Bootstrap',
+  );
+  process.exit(1);
+});

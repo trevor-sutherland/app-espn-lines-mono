@@ -21,8 +21,9 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3000
 ENV NX_DAEMON=false
+# Do not set PORT here. Cloud Run injects PORT (default 8080) and health-checks
+# that port. Local `docker run` can pass -e PORT=3000; main.ts defaults to 3000.
 
 # Webpack generatePackageJson writes runtime deps into api/dist/package.json.
 # Do not nx prune — api/package.json has empty dependencies and would wipe that list.
@@ -33,6 +34,6 @@ RUN cd api/dist && npm install --omit=dev --legacy-peer-deps
 # Mailer looks up templates at <cwd>/api/src/lib/mailer/templates
 COPY --from=builder /app/api/src/lib/mailer/templates ./api/src/lib/mailer/templates
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["node", "api/dist/main.js"]

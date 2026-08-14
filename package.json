@@ -6,6 +6,7 @@
     "serve:ui": "nx serve ui",
     "serve:api": "nx serve @app-espn-lines-mono/api",
     "import:lotw-ncaa": "tsx scripts/import-lotw-ncaa.ts",
+    "mongo:init": "tsx scripts/init-mongo.ts",
     "compose:up": "docker compose up",
     "compose:up:build": "docker compose up --build",
     "compose:down": "docker compose down",
