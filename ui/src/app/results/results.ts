@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ResultsService } from './results.service';
 import { IStandingRow } from './results.model';
 import { DateService } from '../services/date.service';
@@ -47,8 +48,16 @@ export class ResultsComponent implements OnInit {
         this.standings = res.standings ?? [];
         this.loading = false;
       },
-      error: () => {
-        this.error = 'Could not load standings.';
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 401) {
+          this.error = 'Session expired. Log out and log in again.';
+        } else if (err.status === 503) {
+          this.error =
+            'API is still connecting to MongoDB. Wait a few seconds and refresh.';
+        } else {
+          this.error =
+            err.error?.message || 'Could not load standings.';
+        }
         this.loading = false;
       },
     });
