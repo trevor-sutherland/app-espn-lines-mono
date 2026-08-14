@@ -8,6 +8,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
+  Logger.log(
+    `startup PORT=${process.env.PORT ?? '(unset)'} NODE_ENV=${process.env.NODE_ENV} MONGO_URI=${Boolean(process.env.MONGO_URI)} MONGODB_URI=${Boolean(process.env.MONGODB_URI)} JWT_SECRET=${Boolean(process.env.JWT_SECRET)}`,
+    'Bootstrap',
+  );
   const app = await NestFactory.create(AppModule);
   const corsOrigins = (process.env.WEB_APP_URL || 'http://localhost:4200')
     .split(',')

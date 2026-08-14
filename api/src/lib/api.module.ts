@@ -11,19 +11,7 @@ import { PotModule } from './pot/pot.module';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-
-function mongoUri(): string {
-  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (uri) {
-    return uri;
-  }
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'MONGO_URI (or MONGODB_URI) must be set. Cloud Run has no local MongoDB; pointing at localhost will hang until the startup probe fails.',
-    );
-  }
-  return 'mongodb://localhost:27017/espn-lines';
-}
+import { resolveMongoUri } from './mongo-uri';
 
 @Module({
   controllers: [],
@@ -32,8 +20,14 @@ function mongoUri(): string {
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
-    MongooseModule.forRoot(mongoUri(), {
-      serverSelectionTimeoutMS: 10_000,
+    MongooseModule.forRootAsync({
+      useFactory: () => ({
+        uri: resolveMongoUri(),
+        serverSelectionTimeoutMS: 8000,
+        retryAttempts: 1,
+        retryDelay: 1000,
+        family: 4,
+      }),
     }),
     ScheduleModule.forRoot(),
     UsersModule,
