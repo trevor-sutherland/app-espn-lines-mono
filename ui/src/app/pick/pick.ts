@@ -12,6 +12,7 @@ import { forkJoin, of, ReplaySubject, Subscription, switchMap, catchError } from
 import { SportsEnum } from '../enums/sports.enum';
 import { DateService } from '../services/date.service';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../environments/environment';
 
 type SelectedPick = {
   eventId: string;
@@ -110,12 +111,12 @@ export class Pick implements OnInit, OnDestroy {
         const season = this.dateService.getSeasonYear();
         const week = Number(this.selectedWeek);
         return forkJoin({
-          events: this.http.post<IEvent[]>('http://localhost:3000/api/events/', {
+          events: this.http.post<IEvent[]>(`${environment.apiBaseUrl}/events/`, {
             sportKey: sportsKey,
           }),
           odds: this.oddsService.getCurrentWeekOdds(sportsKey),
           myPick: this.http
-            .get<MyPickResponse>('http://localhost:3000/api/picks/mine', {
+            .get<MyPickResponse>(`${environment.apiBaseUrl}/picks/mine`, {
               headers: this.auth.authHeaders(),
               params: { season: String(season), week: String(week) },
             })
@@ -170,7 +171,7 @@ export class Pick implements OnInit, OnDestroy {
     this.submitting = true;
     this.error = null;
     const headers = this.auth.authHeaders();
-    this.http.post('http://localhost:3000/api/picks', {
+    this.http.post(`${environment.apiBaseUrl}/picks`, {
       ...this.selected,
     }, { headers }).subscribe({
       next: () => {

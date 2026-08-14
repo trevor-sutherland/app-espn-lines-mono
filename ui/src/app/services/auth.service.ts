@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { LoginResponse } from '../login/login-response.interface';
+import { environment } from '../../environments/environment';
 
 export type UserRole = 'user' | 'admin';
 
@@ -16,7 +17,7 @@ export type JwtUser = {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
-  private apiUrl = 'http://localhost:3000/api/auth';
+  private apiUrl = `${environment.apiBaseUrl}/auth`;
   private readonly tokenKey = 'jwtToken';
 
   /** Reactive session snapshot for the shell / guards. */

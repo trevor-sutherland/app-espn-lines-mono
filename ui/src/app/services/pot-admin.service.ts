@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
+import { environment } from '../../environments/environment';
 
 export type PotMember = {
   userId: string;
@@ -27,7 +28,7 @@ export type SeasonPotView = {
 export class PotAdminService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
-  private baseUrl = 'http://localhost:3000/api/pot';
+  private baseUrl = `${environment.apiBaseUrl}/pot`;
 
   get(season: number): Observable<SeasonPotView> {
     return this.http.get<SeasonPotView>(this.baseUrl, {

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "spreadhead-picks-ui": {
+      "appLocation": "dist/ui/browser",
+      "outputLocation": ".",
+      "appName": "spreadhead-picks-ui",
+      "resourceGroupName": "spreadhead-picks"
+    }
+  }
+}

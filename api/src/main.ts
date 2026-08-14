@@ -35,12 +35,22 @@ async function bootstrap() {
     new ExpressAdapter(server),
     { abortOnError: false },
   );
-  const corsOrigins = (process.env.WEB_APP_URL || 'http://localhost:4200')
+  const configured = (process.env.WEB_APP_URL || 'http://localhost:4200')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const allowed =
+        configured.includes(origin) ||
+        origin.endsWith('.azurestaticapps.net') ||
+        /^http:\/\/localhost:\d+$/.test(origin);
+      callback(allowed ? null : new Error(`CORS blocked: ${origin}`), allowed);
+    },
     credentials: true,
   });
   app.setGlobalPrefix('api', { exclude: ['health'] });

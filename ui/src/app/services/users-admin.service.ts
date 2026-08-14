@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService, UserRole } from './auth.service';
+import { environment } from '../../environments/environment';
 
 export type AdminUser = {
   id: string;
@@ -17,7 +18,7 @@ export type AdminUser = {
 export class UsersAdminService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
-  private baseUrl = 'http://localhost:3000/api/users';
+  private baseUrl = `${environment.apiBaseUrl}/users`;
 
   listUsers(): Observable<{ users: AdminUser[] }> {
     return this.http.get<{ users: AdminUser[] }>(this.baseUrl, {

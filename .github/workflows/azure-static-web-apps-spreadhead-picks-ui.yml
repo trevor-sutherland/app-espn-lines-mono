@@ -1,0 +1,59 @@
+name: Azure Static Web Apps CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy_job:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Build and Deploy spreadhead-picks-ui
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Validate Azure deployment token secret
+        env:
+          DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_SPREADHEAD_PICKS_UI }}
+        run: |
+          if [ -z "$DEPLOYMENT_TOKEN" ]; then
+            echo "::error::Missing repository secret AZURE_STATIC_WEB_APPS_API_TOKEN_SPREADHEAD_PICKS_UI."
+            echo "Azure Portal → spreadhead-picks-ui → Overview → Manage deployment token."
+            echo "GitHub → Settings → Secrets and variables → Actions → add that secret."
+            exit 1
+          fi
+          echo "Deployment token is set (length ${#DEPLOYMENT_TOKEN} characters)."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build ui
+        run: npx nx build ui --configuration=production
+
+      - name: Verify build output
+        run: |
+          test -f dist/ui/browser/index.html
+          test -f dist/ui/browser/staticwebapp.config.json
+
+      - name: Deploy to Azure Static Web Apps
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_SPREADHEAD_PICKS_UI }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: dist/ui/browser
+          api_location: ""
+          output_location: ""
+          skip_app_build: true
+          production_branch: main

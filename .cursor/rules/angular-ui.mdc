@@ -11,5 +11,5 @@ alwaysApply: false
 - Prefer `inject()` and signals; mirror the nearest existing feature for structure and naming.
 - Shared HTTP helpers and cross-feature services go in `ui/src/app/services/`; models in `models/` or feature-local interfaces.
 - Do not add unit/e2e tests unless the user explicitly asks (workspace generators set runners to none).
-- Keep API base URLs consistent with existing services (`http://localhost:3000/api/...`) until an environment abstraction exists.
+- Use `environment.apiBaseUrl` (`ui/src/environments/`) for API calls. Local is `http://localhost:3000/api`; production points at Cloud Run.
 - When extracting shared UI/API types, prefer `packages/*` over duplicating models across `ui` and `api`.
