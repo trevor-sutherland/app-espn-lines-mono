@@ -205,4 +205,19 @@ export class Pick implements OnInit, OnDestroy {
     const parts = sportKey.split('_');
     return parts.length > 1 ? parts[1] : sportKey;
   }
+
+  teamLogoUrl(teamName: string): string {
+    const abbr = getTeamAbbr(teamName, this.sportKey);
+    if (!abbr || abbr === 'default') {
+      return '/assets/default.png';
+    }
+    return `/assets/${this.getSportAbbr()}/${abbr}.png`;
+  }
+
+  onLogoError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (!img.src.endsWith('/assets/default.png')) {
+      img.src = '/assets/default.png';
+    }
+  }
 }

@@ -59,7 +59,8 @@
                           <td class="text-center" style="width:5%;">
                             @if(getTeamAbbr(outcome.name, sportKey)) {
                               <img
-                                [src]="'assets/' + getSportAbbr() + '/' + getTeamAbbr(outcome.name, sportKey) + '.png' || 'assets/default.png'"
+                                [src]="teamLogoUrl(outcome.name)"
+                                (error)="onLogoError($event)"
                                 alt="{{ outcome.name }}"
                                 style="height: 24px; width: 24px; vertical-align: middle; margin-right: 6px;" />
                             }

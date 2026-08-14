@@ -7,8 +7,6 @@ out-tsc
 
 # dependencies
 node_modules
-/ui/public/assets/ncaaf
-/ui/public/assets/nfl
 /logos-script/.cache
 /logos-script/node_modules
 # IDEs and editors
