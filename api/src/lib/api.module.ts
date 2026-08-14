@@ -23,10 +23,13 @@ import { resolveMongoUri } from './mongo-uri';
     MongooseModule.forRootAsync({
       useFactory: () => ({
         uri: resolveMongoUri(),
+        // Cloud Run cannot reach Atlas over IPv6; force IPv4 or login hangs then 503s.
+        family: 4,
         serverSelectionTimeoutMS: 8000,
-        retryAttempts: 1,
+        connectTimeoutMS: 8000,
+        retryAttempts: 2,
         retryDelay: 1000,
-        lazyConnection: true,
+        lazyConnection: false,
         verboseRetryLog: true,
       }),
     }),

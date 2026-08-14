@@ -6,8 +6,45 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
+
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) {
+    return true;
+  }
+  const configured = (process.env.WEB_APP_URL || 'http://localhost:4200')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return (
+    configured.includes(origin) ||
+    origin.endsWith('.azurestaticapps.net') ||
+    /^http:\/\/localhost:\d+$/.test(origin)
+  );
+}
+
+function applyCors(req: Request, res: Response, next: NextFunction) {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization',
+    );
+    res.header(
+      'Access-Control-Allow-Methods',
+      'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    );
+    res.header('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+}
 
 async function bootstrap() {
   const port = Number(process.env.PORT) || 3000;
@@ -18,6 +55,7 @@ async function bootstrap() {
 
   // Bind 8080 before Nest/Mongo so Cloud Run's TCP startup probe can succeed.
   const server = express();
+  server.use(applyCors);
   let ready = false;
   server.get('/health', (_req, res) => {
     res.status(ready ? 200 : 503).json({ status: ready ? 'ok' : 'starting' });
@@ -35,20 +73,9 @@ async function bootstrap() {
     new ExpressAdapter(server),
     { abortOnError: false },
   );
-  const configured = (process.env.WEB_APP_URL || 'http://localhost:4200')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      const allowed =
-        configured.includes(origin) ||
-        origin.endsWith('.azurestaticapps.net') ||
-        /^http:\/\/localhost:\d+$/.test(origin);
+      const allowed = isAllowedOrigin(origin);
       callback(allowed ? null : new Error(`CORS blocked: ${origin}`), allowed);
     },
     credentials: true,
