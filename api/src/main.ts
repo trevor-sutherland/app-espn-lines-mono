@@ -9,6 +9,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import dns from 'node:dns';
 import express, { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
+import { connectAndPingMongo } from './lib/mongo-uri';
 
 // Cloud Run + Atlas SRV often resolves IPv6 first and never connects.
 dns.setDefaultResultOrder('ipv4first');
@@ -50,6 +51,10 @@ function applyCors(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function bootstrap() {
   const port = Number(process.env.PORT) || 3000;
   Logger.log(
@@ -57,12 +62,35 @@ async function bootstrap() {
     'Bootstrap',
   );
 
-  // Bind 8080 before Nest/Mongo so Cloud Run's TCP startup probe can succeed.
+  let ready = false;
+  let mongo = {
+    connected: false,
+    attempts: 0,
+    error: null as string | null,
+    host: null as string | null,
+    ms: null as number | null,
+  };
+
+  // Bind 8080 first so Cloud Run's TCP probe does not kill the revision
+  // while we actually connect to Mongo.
   const server = express();
   server.use(applyCors);
-  let ready = false;
   server.get('/health', (_req, res) => {
-    res.status(ready ? 200 : 503).json({ status: ready ? 'ok' : 'starting' });
+    res.status(ready ? 200 : 503).json({
+      status: ready ? 'ok' : 'starting',
+      mongo,
+    });
+  });
+  server.use('/api', (_req, res, next) => {
+    if (ready) {
+      next();
+      return;
+    }
+    res.status(503).json({
+      status: 'starting',
+      message: 'API is not ready until MongoDB connects.',
+      mongo,
+    });
   });
   await new Promise<void>((resolve, reject) => {
     const httpServer = server.listen(port, '0.0.0.0', () => {
@@ -71,6 +99,27 @@ async function bootstrap() {
     });
     httpServer.on('error', reject);
   });
+
+  while (!mongo.connected) {
+    mongo.attempts += 1;
+    try {
+      const result = await connectAndPingMongo();
+      mongo = {
+        connected: true,
+        attempts: mongo.attempts,
+        error: null,
+        host: result.host,
+        ms: result.ms,
+      };
+    } catch (err) {
+      mongo.error = err instanceof Error ? err.message : String(err);
+      Logger.error(
+        `Mongo attempt ${mongo.attempts} failed: ${mongo.error}`,
+        'Mongo',
+      );
+      await delay(2000);
+    }
+  }
 
   const app = await NestFactory.create(
     AppModule,
@@ -98,5 +147,4 @@ bootstrap().catch((err) => {
     err instanceof Error ? err.stack ?? err.message : String(err),
     'Bootstrap',
   );
-  // Stay alive so Cloud Run keeps the open port; check logs for the error above.
 });

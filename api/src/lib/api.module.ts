@@ -11,7 +11,7 @@ import { PotModule } from './pot/pot.module';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { resolveMongoUri } from './mongo-uri';
+import { mongoConnectOptions, resolveMongoUri } from './mongo-uri';
 
 @Module({
   controllers: [],
@@ -23,13 +23,10 @@ import { resolveMongoUri } from './mongo-uri';
     MongooseModule.forRootAsync({
       useFactory: () => ({
         uri: resolveMongoUri(),
-        // Cloud Run cannot reach Atlas over IPv6; force IPv4 or login hangs then 503s.
-        family: 4,
-        serverSelectionTimeoutMS: 8000,
-        connectTimeoutMS: 8000,
+        ...mongoConnectOptions,
         retryAttempts: 2,
         retryDelay: 1000,
-        lazyConnection: true,
+        lazyConnection: false,
         verboseRetryLog: true,
       }),
     }),
