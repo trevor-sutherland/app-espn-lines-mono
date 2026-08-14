@@ -29,7 +29,7 @@ import { resolveMongoUri } from './mongo-uri';
         connectTimeoutMS: 8000,
         retryAttempts: 2,
         retryDelay: 1000,
-        lazyConnection: false,
+        lazyConnection: true,
         verboseRetryLog: true,
       }),
     }),

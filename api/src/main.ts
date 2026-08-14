@@ -6,8 +6,12 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
+import dns from 'node:dns';
 import express, { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
+
+// Cloud Run + Atlas SRV often resolves IPv6 first and never connects.
+dns.setDefaultResultOrder('ipv4first');
 
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) {
