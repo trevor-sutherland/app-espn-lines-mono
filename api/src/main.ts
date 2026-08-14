@@ -74,7 +74,10 @@ async function bootstrap() {
     { abortOnError: false },
   );
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       const allowed = isAllowedOrigin(origin);
       callback(allowed ? null : new Error(`CORS blocked: ${origin}`), allowed);
     },
