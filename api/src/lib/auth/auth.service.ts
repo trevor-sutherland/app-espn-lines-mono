@@ -28,6 +28,15 @@ export class AuthService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    // Do not block Cloud Run listen() on Mongo being reachable.
+    void this.seedOnStartup().catch((err) =>
+      this.log.error(
+        err instanceof Error ? err.stack ?? err.message : String(err),
+      ),
+    );
+  }
+
+  private async seedOnStartup() {
     // Existing accounts (pre-approval field) keep access
     await this.userModel.updateMany(
       { approved: { $exists: false } },

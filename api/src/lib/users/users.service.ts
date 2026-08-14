@@ -26,11 +26,10 @@ export class UsersService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Backfill active for users created before this field existed
-    await this.userModel.updateMany(
-      { active: { $exists: false } },
-      { $set: { active: true } },
-    );
+    void this.userModel
+      .updateMany({ active: { $exists: false } }, { $set: { active: true } })
+      .exec()
+      .catch(() => undefined);
   }
 
   private toPublic(user: UserDocument): PublicUser {
