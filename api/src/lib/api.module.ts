@@ -11,6 +11,7 @@ import { PotModule } from './pot/pot.module';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import mongoose from 'mongoose';
 import { mongoConnectOptions, resolveMongoUri } from './mongo-uri';
 
 @Module({
@@ -24,10 +25,10 @@ import { mongoConnectOptions, resolveMongoUri } from './mongo-uri';
       useFactory: () => ({
         uri: resolveMongoUri(),
         ...mongoConnectOptions,
-        retryAttempts: 2,
-        retryDelay: 1000,
-        lazyConnection: false,
-        verboseRetryLog: true,
+        // Bootstrap already opened+pinged mongoose.connection. Reuse it so
+        // NestFactory.create does not block on a second Atlas handshake.
+        lazyConnection: true,
+        connectionFactory: () => mongoose.connection,
       }),
     }),
     ScheduleModule.forRoot(),
