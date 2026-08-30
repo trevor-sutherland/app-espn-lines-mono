@@ -38,8 +38,7 @@
       <thead class="table-dark">
         <tr>
           <th scope="col">Display Name</th>
-          <th scope="col">Team</th>
-          <th scope="col">Line</th>
+          <th scope="col">Pick</th>
           <th scope="col">Status</th>
         </tr>
       </thead>
@@ -47,8 +46,7 @@
         @for (pick of filteredPicks; track pick._id) {
           <tr>
             <td>{{ pick.userId.displayName }}</td>
-            <td>{{ pick.team }}</td>
-            <td>{{ pick.line }}</td>
+            <td>{{ pickLabel(pick) }}</td>
             <td>{{ pick.status }}</td>
           </tr>
         }

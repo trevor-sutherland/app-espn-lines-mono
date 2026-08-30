@@ -15,6 +15,7 @@ export class PicksService {
       const doc = await this.PickModel.create({
         userId: dto.userId,
         eventId: dto.eventId,
+        market: dto.market || 'spreads',
         team: dto.team,
         line: dto.line,
         season: dto.season,
@@ -53,7 +54,7 @@ export class PicksService {
   async getAllPicksWithUser() {
     return this.PickModel.find()
       .populate('userId', 'displayName') // assumes userId is a ref to User
-      .select('userId team line season week status createdAt')
+      .select('userId team market line season week status createdAt')
       .lean();
   }
 }

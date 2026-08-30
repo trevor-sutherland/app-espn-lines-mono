@@ -13,10 +13,19 @@ import { DateService } from '../services/date.service';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
 import { formatPicksOpenAt } from '../helpers/season-week';
+import {
+  formatPickLabel,
+  formatSignedLine,
+  formatTotalButton,
+  resolvePickMarket,
+  type PickMarket,
+} from '../helpers/pick-label';
+import { IBookmakers } from '../models/bookmaker.model';
 
 type SelectedPick = {
   eventId: string;
   team: string;
+  market: PickMarket;
   line: number | null;
   week: number;
   season: number;
@@ -25,6 +34,7 @@ type SelectedPick = {
 type LineChangePrompt = {
   eventId: string;
   team: string;
+  market: PickMarket;
   submittedLine: number;
   currentLine: number;
 };
@@ -33,6 +43,7 @@ type MyPickResponse = {
   pick: {
     eventId: string;
     team: string;
+    market?: PickMarket;
     line: number | null;
     season: number;
     week: number;
@@ -169,25 +180,40 @@ export class Pick implements OnInit, OnDestroy {
     this.selected = {
       eventId: pick.eventId,
       team: pick.team,
+      market: resolvePickMarket(pick.market, pick.team),
       line: pick.line,
       week: pick.week,
       season: pick.season,
     };
   }
 
-  isSelectedOutcome(eventId: string, team: string): boolean {
-    return this.selected?.eventId === eventId && this.selected?.team === team;
+  isSelectedOutcome(
+    eventId: string,
+    team: string,
+    market: PickMarket = 'spreads',
+  ): boolean {
+    return (
+      this.selected?.eventId === eventId &&
+      this.selected?.team === team &&
+      this.selected?.market === market
+    );
   }
 
   get canPick(): boolean {
     return this.picksOpen && !this.weekLocked && !this.submitting && !this.lineChange;
   }
 
-  selectPick(eventId: string, team: string, line: number) {
+  selectPick(
+    eventId: string,
+    team: string,
+    line: number,
+    market: PickMarket,
+  ) {
     if (!this.canPick) return;
     this.selected = {
       eventId,
       team,
+      market,
       line,
       week: Number(this.selectedWeek),
       season: this.dateService.getSeasonYear(),
@@ -198,26 +224,78 @@ export class Pick implements OnInit, OnDestroy {
     return this.selected?.eventId === eventId;
   }
 
-  togglePick(domEvent: Event, eventId: string, team: string, line: number) {
+  togglePick(
+    domEvent: Event,
+    eventId: string,
+    team: string,
+    line: number,
+    market: PickMarket,
+  ) {
     if (!this.canPick) {
       domEvent.preventDefault();
       return;
     }
-    if (this.isSelectedOutcome(eventId, team)) {
+    if (this.isSelectedOutcome(eventId, team, market)) {
       domEvent.preventDefault();
       this.selected = null;
       (domEvent.target as HTMLInputElement).checked = false;
       return;
     }
-    this.selectPick(eventId, team, line);
+    this.selectPick(eventId, team, line, market);
   }
 
   formatLine(line: number | null | undefined): string {
-    if (line == null || Number.isNaN(Number(line))) {
-      return '—';
-    }
-    const n = Number(line);
-    return `${n > 0 ? '+' : ''}${n}`;
+    return formatSignedLine(line);
+  }
+
+  formatPickLabel(
+    team: string,
+    line: number | null | undefined,
+    market?: string | null,
+  ): string {
+    return formatPickLabel(team, line, market);
+  }
+
+  formatTotalButton(
+    side: 'Over' | 'Under',
+    line: number | null | undefined,
+  ): string {
+    return formatTotalButton(side, line);
+  }
+
+  marketOf(bookmaker: IBookmakers, key: 'spreads' | 'totals') {
+    return bookmaker.markets.find((market) => market.key === key) ?? null;
+  }
+
+  outcomeNamed(
+    bookmaker: IBookmakers,
+    marketKey: 'spreads' | 'totals',
+    name: string,
+  ) {
+    const market = this.marketOf(bookmaker, marketKey);
+    const key = name.toLowerCase();
+    return (
+      market?.outcomes.find((outcome) => outcome.name.toLowerCase() === key) ??
+      null
+    );
+  }
+
+  matchupSides(event: IEventOdds): { team: string; total: 'Over' | 'Under' }[] {
+    return [
+      { team: event.away_team, total: 'Over' },
+      { team: event.home_team, total: 'Under' },
+    ];
+  }
+
+  hasTotals(bookmaker: IBookmakers): boolean {
+    const over = this.outcomeNamed(bookmaker, 'totals', 'Over');
+    const under = this.outcomeNamed(bookmaker, 'totals', 'Under');
+    return (
+      over?.point != null &&
+      under?.point != null &&
+      Number(over.point) !== 0 &&
+      Number(under.point) !== 0
+    );
   }
 
   onSubmitForm(event: Event): void {
@@ -246,6 +324,7 @@ export class Pick implements OnInit, OnDestroy {
           this.lineChange = {
             eventId: body.eventId,
             team: body.team,
+            market: resolvePickMarket(body.market, body.team),
             submittedLine: body.submittedLine,
             currentLine: body.currentLine,
           };
@@ -267,6 +346,7 @@ export class Pick implements OnInit, OnDestroy {
       ...this.selected,
       eventId: this.lineChange.eventId,
       team: this.lineChange.team,
+      market: this.lineChange.market,
       line: this.lineChange.currentLine,
     };
     this.submitPick(true);

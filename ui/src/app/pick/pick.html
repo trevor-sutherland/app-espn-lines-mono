@@ -51,10 +51,7 @@
       <div class="locksonly-notice locksonly-notice--success">
         <div>
           Week {{ selected.week }} is locked. Your pick:
-          <strong>{{ selected.team }}</strong>
-          @if (selected.line != null) {
-            <span>({{ formatLine(selected.line) }})</span>
-          }
+          <strong>{{ formatPickLabel(selected.team, selected.line, selected.market) }}</strong>
         </div>
       </div>
     }
@@ -122,41 +119,69 @@
                 <div class="locksonly-matchup-table">
                   <div class="matchup-grid matchup-column-header">
                     <div>TEAM</div>
-                    <div class="text-center">LINE</div>
-                    <div class="text-center">PICK</div>
+                    <div class="text-center">SPREAD</div>
+                    <div class="text-center">TOTAL</div>
                   </div>
-                  @for (market of bookmaker.markets; track market.key) {
-                    @for (outcome of market.outcomes; track outcome.name) {
-                      <label
-                        class="matchup-grid matchup-row"
-                        [class.is-locked]="!canPick"
-                      >
-                        <div class="team-cell">
-                          @if (getTeamAbbr(outcome.name, sportKey)) {
-                            <img
-                              class="team-logo"
-                              [src]="teamLogoUrl(outcome.name)"
-                              (error)="onLogoError($event)"
-                              alt=""
-                            />
-                          }
-                          <span class="team-name">{{ outcome.name }}</span>
-                        </div>
-                        <div class="line-cell">{{ formatLine(outcome.point) }}</div>
-                        <div class="pick-cell">
-                          <input
-                            class="locksonly-radio"
-                            type="radio"
-                            name="pick"
-                            [value]="event.id + outcome.name + bookmaker.key + market.key"
-                            [checked]="isSelectedOutcome(event.id, outcome.name)"
-                            (click)="$event.stopPropagation(); togglePick($event, event.id, outcome.name, outcome.point)"
-                            [disabled]="!canPick"
-                            [attr.aria-label]="'Pick ' + outcome.name"
+                  @for (side of matchupSides(event); track side.team) {
+                    <div class="matchup-grid matchup-row" [class.is-locked]="!canPick">
+                      <div class="team-cell">
+                        @if (getTeamAbbr(side.team, sportKey)) {
+                          <img
+                            class="team-logo"
+                            [src]="teamLogoUrl(side.team)"
+                            (error)="onLogoError($event)"
+                            alt=""
                           />
-                        </div>
-                      </label>
-                    }
+                        }
+                        <span class="team-name">{{ side.team }}</span>
+                      </div>
+                      <div class="line-cell">
+                        @if (outcomeNamed(bookmaker, 'spreads', side.team); as spread) {
+                          <label
+                            class="locksonly-line-btn"
+                            [class.is-selected]="isSelectedOutcome(event.id, side.team, 'spreads')"
+                            [class.is-locked]="!canPick"
+                          >
+                            <input
+                              class="locksonly-radio"
+                              type="radio"
+                              name="pick"
+                              [value]="event.id + 'spreads' + side.team + bookmaker.key"
+                              [checked]="isSelectedOutcome(event.id, side.team, 'spreads')"
+                              (click)="togglePick($event, event.id, side.team, spread.point, 'spreads')"
+                              [disabled]="!canPick"
+                              [attr.aria-label]="'Pick ' + side.team + ' ' + formatLine(spread.point)"
+                            />
+                            {{ formatLine(spread.point) }}
+                          </label>
+                        } @else {
+                          <span>—</span>
+                        }
+                      </div>
+                      <div class="line-cell">
+                        @if (hasTotals(bookmaker)) {
+                          @if (outcomeNamed(bookmaker, 'totals', side.total); as total) {
+                            <label
+                              class="locksonly-line-btn"
+                              [class.is-selected]="isSelectedOutcome(event.id, side.total, 'totals')"
+                              [class.is-locked]="!canPick"
+                            >
+                              <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="pick"
+                                [value]="event.id + 'totals' + side.total + bookmaker.key"
+                                [checked]="isSelectedOutcome(event.id, side.total, 'totals')"
+                                (click)="togglePick($event, event.id, side.total, total.point, 'totals')"
+                                [disabled]="!canPick"
+                                [attr.aria-label]="'Pick ' + formatTotalButton(side.total, total.point)"
+                              />
+                              {{ formatTotalButton(side.total, total.point) }}
+                            </label>
+                          }
+                        }
+                      </div>
+                    </div>
                   }
                 </div>
               }
@@ -208,10 +233,12 @@
         </div>
         <div class="modal-body">
           <p>
-            The DraftKings line for <strong>{{ lineChange.team }}</strong> moved from
-            <strong>{{ formatLine(lineChange.submittedLine) }}</strong>
+            The DraftKings line for
+            <strong>{{ formatPickLabel(lineChange.team, lineChange.submittedLine, lineChange.market) }}</strong>
+            moved from
+            <strong>{{ lineChange.market === 'totals' ? lineChange.submittedLine : formatLine(lineChange.submittedLine) }}</strong>
             to
-            <strong>{{ formatLine(lineChange.currentLine) }}</strong>.
+            <strong>{{ lineChange.market === 'totals' ? lineChange.currentLine : formatLine(lineChange.currentLine) }}</strong>.
           </p>
           <p class="mb-0">Approve the new line to submit this pick?</p>
         </div>
@@ -233,7 +260,7 @@
             @if (submitting) {
               <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
             }
-            Approve {{ formatLine(lineChange.currentLine) }}
+            Approve {{ lineChange.market === 'totals' ? lineChange.currentLine : formatLine(lineChange.currentLine) }}
           </button>
         </div>
       </div>

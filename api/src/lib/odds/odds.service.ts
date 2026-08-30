@@ -22,7 +22,9 @@ export class OddsService {
     if (!this.apiKey) {
       this.log.warn('ODDS_API_KEY is not set. Set it in your environment.');
     }
-    this.defaultMarkets = process.env.ODDS_API_MARKETS || 'spreads';
+    this.defaultMarkets = this.withTotalsMarket(
+      process.env.ODDS_API_MARKETS || 'spreads',
+    );
     this.defaultBookmakers = process.env.ODDS_API_BOOKMAKERS || 'draftkings';
     this.oddsFormat =
       (process.env.ODDS_API_FORMAT as 'american' | 'decimal') || 'american';
@@ -345,17 +347,16 @@ export class OddsService {
   }
 
   /**
-   * Pull the current DraftKings spread for one event/team and persist it.
+   * Pull the current DraftKings line for one event/selection and persist it.
    * Falls back to the last saved Mongo line if the live request fails.
    */
-  async getDraftKingsSpread(
+  async getDraftKingsLine(
     eventId: string,
-    team: string,
+    selection: string,
+    market: 'spreads' | 'totals' = 'spreads',
   ): Promise<{ line: number } | null> {
-    const teamKey = team.trim().toLowerCase();
-    const stored = await this.oddsModel
-      .findOne({ eventId, market: 'spreads' })
-      .lean();
+    const selectionKey = selection.trim().toLowerCase();
+    const stored = await this.oddsModel.findOne({ eventId }).lean();
     const sport = stored?.sport;
     if (sport) {
       try {
@@ -363,10 +364,8 @@ export class OddsService {
           eventIds: eventId,
           allowInsert: true,
         });
-        const live = result.rows.find(
-          (row) =>
-            row.market === 'spreads' &&
-            (row.team || '').toLowerCase() === teamKey,
+        const live = result.rows.find((row) =>
+          this.rowMatchesSelection(row, market, selectionKey),
         );
         if (live?.line != null) {
           return { line: live.line };
@@ -383,11 +382,52 @@ export class OddsService {
     const fallback = await this.oddsModel
       .findOne({
         eventId,
-        market: 'spreads',
-        team: { $regex: new RegExp(`^${this.escapeRegex(team.trim())}$`, 'i') },
+        market,
+        $or: [
+          {
+            team: {
+              $regex: new RegExp(`^${this.escapeRegex(selection.trim())}$`, 'i'),
+            },
+          },
+          {
+            selection: {
+              $regex: new RegExp(`^${this.escapeRegex(selection.trim())}$`, 'i'),
+            },
+          },
+        ],
       })
       .lean();
     return fallback?.line != null ? { line: fallback.line } : null;
+  }
+
+  /** @deprecated Use getDraftKingsLine. Kept so existing callers still compile. */
+  async getDraftKingsSpread(
+    eventId: string,
+    team: string,
+  ): Promise<{ line: number } | null> {
+    return this.getDraftKingsLine(eventId, team, 'spreads');
+  }
+
+  private rowMatchesSelection(
+    row: NormalizedOddsRow,
+    market: 'spreads' | 'totals',
+    selectionKey: string,
+  ): boolean {
+    if (row.market !== market) return false;
+    const team = (row.team || '').toLowerCase();
+    const selection = (row.selection || '').toLowerCase();
+    return team === selectionKey || selection === selectionKey;
+  }
+
+  private withTotalsMarket(markets: string): string {
+    const parts = markets
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!parts.includes('totals')) {
+      parts.push('totals');
+    }
+    return parts.join(',');
   }
 
   private escapeRegex(value: string): string {

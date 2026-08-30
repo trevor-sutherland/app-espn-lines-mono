@@ -309,7 +309,7 @@ async function seedOdds(
     return {};
   }
 
-  const markets = process.env.ODDS_API_MARKETS || 'spreads';
+  const markets = process.env.ODDS_API_MARKETS || 'spreads,totals';
   const bookmakers = process.env.ODDS_API_BOOKMAKERS || 'draftkings';
   const oddsFormat = process.env.ODDS_API_FORMAT || 'american';
   const counts: Record<string, number> = {};

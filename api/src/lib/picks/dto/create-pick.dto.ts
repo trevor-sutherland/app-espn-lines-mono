@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePickDto {
@@ -8,6 +8,10 @@ export class CreatePickDto {
   @IsString()
   @IsNotEmpty()
   eventId!: string;
+
+  @IsOptional()
+  @IsIn(['spreads', 'totals'])
+  market?: 'spreads' | 'totals';
 
   @IsString()
   @IsNotEmpty()

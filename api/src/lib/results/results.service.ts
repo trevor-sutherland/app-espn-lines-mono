@@ -157,6 +157,27 @@ export class ResultsService {
     return 'void';
   }
 
+  gradeTotals(
+    selection: string,
+    line: number | null,
+    homeScore: number,
+    awayScore: number,
+  ): 'won' | 'lost' | 'void' | null {
+    const side = selection.trim().toLowerCase();
+    if (side !== 'over' && side !== 'under') {
+      return null;
+    }
+    if (line == null || Number.isNaN(Number(line))) {
+      return null;
+    }
+    const finalTotal = homeScore + awayScore;
+    const totalLine = Number(line);
+    if (finalTotal === totalLine) return 'void';
+    const overWins = finalTotal > totalLine;
+    if (side === 'over') return overWins ? 'won' : 'lost';
+    return overWins ? 'lost' : 'won';
+  }
+
   async gradePendingPicks(): Promise<{ graded: number; skipped: number }> {
     const pending = await this.pickModel.find({ status: 'pending' }).lean();
     if (!pending.length) {
@@ -179,17 +200,21 @@ export class ResultsService {
         continue;
       }
 
-      const status = this.gradeAts(
-        pick.team,
-        pick.line,
-        game.homeTeam,
-        game.awayTeam,
-        game.homeScore,
-        game.awayScore,
-      );
+      const market = this.resolvePickMarket(pick.market, pick.team);
+      const status =
+        market === 'totals'
+          ? this.gradeTotals(pick.team, pick.line, game.homeScore, game.awayScore)
+          : this.gradeAts(
+              pick.team,
+              pick.line,
+              game.homeTeam,
+              game.awayTeam,
+              game.homeScore,
+              game.awayScore,
+            );
       if (!status) {
         this.log.warn(
-          `Could not match pick team "${pick.team}" to game ${pick.eventId}`,
+          `Could not grade pick "${pick.team}" (${market}) for game ${pick.eventId}`,
         );
         skipped += 1;
         continue;
@@ -293,5 +318,19 @@ export class ResultsService {
         points: e.points,
       }))
       .sort((a, b) => b.points - a.points || a.displayName.localeCompare(b.displayName));
+  }
+
+  private resolvePickMarket(
+    market: string | undefined,
+    team: string,
+  ): 'spreads' | 'totals' {
+    if (market === 'totals' || market === 'spreads') {
+      return market;
+    }
+    const name = (team || '').trim().toLowerCase();
+    if (name === 'over' || name === 'under') {
+      return 'totals';
+    }
+    return 'spreads';
   }
 }

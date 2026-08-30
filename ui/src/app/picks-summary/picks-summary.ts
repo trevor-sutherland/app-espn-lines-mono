@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { IPickSummary } from './picks-summary.model';
 import { DateService } from '../services/date.service';
 import { PicksSummaryService } from './picks-summary.service';
+import { formatPickLabel } from '../helpers/pick-label';
 
 @Component({
   selector: 'app-picks-summary',
@@ -52,6 +53,10 @@ export class PicksSummary implements OnInit {
   onWeekChange(week: string | number) {
     this.selectedWeek = typeof week === 'string' ? parseInt(week, 10) : week;
     this.applyFilters();
+  }
+
+  pickLabel(pick: IPickSummary): string {
+    return formatPickLabel(pick.team, pick.line, pick.market);
   }
 
   applyFilters() {

@@ -11,6 +11,8 @@ export class Pick {
   @Prop({ required: true, index: true }) eventId: string;
 
   // Odds snapshot at pick time (immutable)
+  @Prop({ required: true, default: 'spreads', enum: ['spreads', 'totals'] })
+  market: 'spreads' | 'totals';
   @Prop({ required: true }) team: string;
   @Prop({ type: Number }) line: number | null;
   @Prop({ required: true }) lockedAt: Date;

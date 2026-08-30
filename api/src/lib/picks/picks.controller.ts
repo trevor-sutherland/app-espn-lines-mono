@@ -63,9 +63,25 @@ export class PicksController {
       throw new ConflictException('You already made a pick for this week');
     }
 
-    const live = await this.oddsService.getDraftKingsSpread(
+    const market = this.resolveMarket(createPickDto);
+    const selection = this.normalizeSelection(createPickDto.team, market);
+    if (!selection) {
+      throw new HttpException(
+        {
+          code: 'INVALID_SELECTION',
+          message:
+            market === 'totals'
+              ? 'Total picks must be Over or Under.'
+              : 'A team is required for a spread pick.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const live = await this.oddsService.getDraftKingsLine(
       createPickDto.eventId,
-      createPickDto.team,
+      selection,
+      market,
     );
     if (!live) {
       throw new HttpException(
@@ -89,7 +105,8 @@ export class PicksController {
           code: 'LINE_CHANGED',
           message: 'The DraftKings line has changed.',
           eventId: createPickDto.eventId,
-          team: createPickDto.team,
+          team: selection,
+          market,
           submittedLine,
           currentLine,
         },
@@ -102,6 +119,8 @@ export class PicksController {
       userId,
       season,
       week,
+      market,
+      team: selection,
       line: currentLine,
       lockedAt: new Date(),
     };
@@ -145,6 +164,7 @@ export class PicksController {
       pick: {
         eventId: existing.eventId,
         team: existing.team,
+        market: existing.market || 'spreads',
         line: existing.line,
         season: existing.season,
         week: existing.week,
@@ -168,5 +188,31 @@ export class PicksController {
       week,
     );
     return { hasPicked: !!existing, season, week };
+  }
+
+  private resolveMarket(
+    dto: CreatePickDto,
+  ): 'spreads' | 'totals' {
+    if (dto.market === 'totals' || dto.market === 'spreads') {
+      return dto.market;
+    }
+    const name = (dto.team || '').trim().toLowerCase();
+    if (name === 'over' || name === 'under') {
+      return 'totals';
+    }
+    return 'spreads';
+  }
+
+  private normalizeSelection(
+    team: string,
+    market: 'spreads' | 'totals',
+  ): string | null {
+    const trimmed = (team || '').trim();
+    if (!trimmed) return null;
+    if (market !== 'totals') return trimmed;
+    const key = trimmed.toLowerCase();
+    if (key === 'over') return 'Over';
+    if (key === 'under') return 'Under';
+    return null;
   }
 }
