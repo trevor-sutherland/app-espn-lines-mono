@@ -1,0 +1,69 @@
+name: Deploy API to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: fast-ability-283416
+  REGION: us-central1
+  SERVICE: spreadhead-picks-api
+  IMAGE: us-central1-docker.pkg.dev/fast-ability-283416/cloud-run-source-deploy/app-espn-lines-mono/spreadhead-picks-api
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Build and deploy spreadhead-picks-api
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate GCP service account secret
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          if [ -z "$GCP_SA_KEY" ]; then
+            echo "::error::Missing repository secret GCP_SA_KEY."
+            echo "Create a GCP service account key and add it under"
+            echo "GitHub → Settings → Secrets and variables → Actions → GCP_SA_KEY"
+            exit 1
+          fi
+          echo "GCP_SA_KEY is set (length ${#GCP_SA_KEY} characters)."
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build container image
+        run: |
+          docker build \
+            -f Dockerfile.api \
+            -t "${IMAGE}:${GITHUB_SHA}" \
+            -t "${IMAGE}:latest" \
+            .
+
+      - name: Push container image
+        run: |
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --image="${IMAGE}:${GITHUB_SHA}" \
+            --quiet
