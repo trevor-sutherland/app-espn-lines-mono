@@ -1,4 +1,4 @@
-/** Football weeks are Monday–Sunday in America/Chicago. Week 2 starts Labor Day. */
+/** Keep in sync with api/src/lib/utils/seasson-week.util.ts */
 
 const TZ = 'America/Chicago';
 const MONTHS = [
@@ -99,7 +99,6 @@ function mondayOnOrBefore(day: CalendarDay): CalendarDay {
   return addCalendarDays(day, -offset);
 }
 
-/** First Monday of September (Labor Day) in the season year. */
 export function laborDay(seasonYear: number): CalendarDay {
   const sept1 = { year: seasonYear, month: 9, day: 1 };
   const offset =
@@ -115,7 +114,6 @@ export function getSeasonYear(now: Date = new Date()): number {
   return month >= 7 ? year : year - 1;
 }
 
-/** Monday of ESPN-style week N (Week 2 = Labor Day). */
 export function weekMonday(seasonYear: number, week: number): CalendarDay {
   return addCalendarDays(laborDay(seasonYear), (week - 2) * 7);
 }
@@ -165,7 +163,8 @@ export function computeCurrentWeek(
   const week1Monday = weekMonday(seasonYear, 1);
   const thisMonUtc = Date.UTC(thisMonday.year, thisMonday.month - 1, thisMonday.day);
   const week1Utc = Date.UTC(week1Monday.year, week1Monday.month - 1, week1Monday.day);
-  const weeksFromOne = Math.floor((thisMonUtc - week1Utc) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const weeksFromOne =
+    Math.floor((thisMonUtc - week1Utc) / (7 * 24 * 60 * 60 * 1000)) + 1;
   return Math.max(1, Math.min(maxWeeks, weeksFromOne));
 }
 

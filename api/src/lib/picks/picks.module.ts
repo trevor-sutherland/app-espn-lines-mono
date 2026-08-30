@@ -5,9 +5,11 @@ import { PicksController } from './picks.controller';
 import { Pick, PickSchema } from './picks.schema';
 import { Event, EventSchema } from '../events/events.schema';
 import { OddsLatest, OddsLatestSchema } from '../odds/odds.schema';
+import { OddsModule } from '../odds/odds.module';
 
 @Module({
   imports: [
+    OddsModule,
     MongooseModule.forFeature([
       { name: Pick.name, schema: PickSchema },
       { name: Event.name, schema: EventSchema },

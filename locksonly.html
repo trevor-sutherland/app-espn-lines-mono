@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>LocksOnly | Picks</title>
+
+    <!-- Bootstrap 5.3.8 -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- LocksOnly custom styling -->
+    <link rel="stylesheet" href="/static/css/locksonly.css">
+</head>
+
+<body class="locksonly-body">
+
+<!-- =========================================================
+     NAVIGATION
+========================================================= -->
+<nav class="navbar navbar-expand-lg locksonly-navbar">
+    <div class="container-xl">
+
+        <!-- BRAND -->
+        <a class="navbar-brand locksonly-brand" href="/">
+            <img
+                src="/static/images/locksonly-logo.png"
+                alt="LocksOnly"
+                class="locksonly-logo"
+            >
+        </a>
+
+        <!-- MOBILE TOGGLE -->
+        <button
+            class="navbar-toggler locksonly-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#locksOnlyNavbar"
+            aria-controls="locksOnlyNavbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="locksOnlyNavbar">
+
+            <!-- MAIN NAV -->
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 locksonly-main-nav">
+
+                <li class="nav-item">
+                    <a class="nav-link active" href="/picks">
+                        Picks
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/weekly-summary">
+                        Weekly Summary
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/results">
+                        Results
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/account">
+                        Account
+                    </a>
+                </li>
+
+            </ul>
+
+            <!-- RIGHT SIDE -->
+            <div class="locksonly-nav-actions">
+
+                <select
+                    class="form-select locksonly-sport-select"
+                    aria-label="Select sport"
+                >
+                    <option selected>NCAAF</option>
+                    <option>NFL</option>
+                </select>
+
+                <span class="locksonly-user-email">
+                    jhornibrook@gmail.com
+                </span>
+
+                <a href="/logout" class="btn btn-locksonly-outline">
+                    Log Out
+                </a>
+
+            </div>
+
+        </div>
+    </div>
+</nav>
+
+
+<!-- =========================================================
+     PAGE CONTENT
+========================================================= -->
+<main class="locksonly-page">
+
+    <div class="container-xl">
+
+        <!-- PAGE TITLE -->
+        <section class="locksonly-page-header text-center">
+
+            <h1>
+                THIS WEEK'S NCAAF GAMES
+            </h1>
+
+            <div class="locksonly-week-label">
+                Week 1
+                <span class="week-dot">•</span>
+                August 31 – September 6
+            </div>
+
+        </section>
+
+
+        <!-- PICK WINDOW NOTICE -->
+        <div class="locksonly-notice">
+
+            <div class="locksonly-notice-icon">
+                <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v5l3 2"></path>
+                </svg>
+            </div>
+
+            <div>
+                <strong>Picks open Tuesday, September 1 at 12:00 AM CDT.</strong>
+                You can view this week's games now; submissions start Tuesday
+                at 12:00 AM Central.
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             FILTER TABS
+        ====================================================== -->
+        <div class="locksonly-filters">
+
+            <button
+                type="button"
+                class="btn locksonly-filter active"
+            >
+                <span class="filter-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        fill="currentColor"
+                    >
+                        <rect x="3" y="3" width="5" height="5" rx="1"></rect>
+                        <rect x="10" y="3" width="5" height="5" rx="1"></rect>
+                        <rect x="17" y="3" width="4" height="5" rx="1"></rect>
+                        <rect x="3" y="10" width="5" height="5" rx="1"></rect>
+                        <rect x="10" y="10" width="5" height="5" rx="1"></rect>
+                        <rect x="17" y="10" width="4" height="5" rx="1"></rect>
+                        <rect x="3" y="17" width="5" height="4" rx="1"></rect>
+                        <rect x="10" y="17" width="5" height="4" rx="1"></rect>
+                        <rect x="17" y="17" width="4" height="4" rx="1"></rect>
+                    </svg>
+                </span>
+                All Games
+            </button>
+
+
+            <button
+                type="button"
+                class="btn locksonly-filter"
+            >
+                <span class="filter-icon">
+                    ☆
+                </span>
+                Top 25
+            </button>
+
+
+            <button
+                type="button"
+                class="btn locksonly-filter"
+            >
+                <span class="filter-icon">
+                    ♜
+                </span>
+                Conference Winners
+            </button>
+
+
+            <button
+                type="button"
+                class="btn locksonly-filter"
+            >
+                <span class="filter-icon">
+                    ◉
+                </span>
+                National Championship
+            </button>
+
+        </div>
+
+
+        <!-- =====================================================
+             PICKS FORM
+        ====================================================== -->
+        <form method="post" action="/picks">
+
+            <!-- =================================================
+                 GAME CARD #1
+            ================================================== -->
+            <section class="locksonly-game-card">
+
+                <div class="locksonly-game-header">
+
+                    <div class="game-time">
+
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="16"
+                                rx="2"
+                            ></rect>
+
+                            <path d="M16 3v4"></path>
+                            <path d="M8 3v4"></path>
+                            <path d="M3 11h18"></path>
+                        </svg>
+
+                        <span>
+                            Thursday, Sep 03
+                        </span>
+
+                        <span class="game-time-divider">
+                            •
+                        </span>
+
+                        <strong>
+                            05:00 PM CT
+                        </strong>
+
+                    </div>
+
+                    <div class="game-header-mark">
+                        ✓
+                    </div>
+
+                </div>
+
+
+                <div class="locksonly-matchup-table">
+
+                    <!-- COLUMN HEADER -->
+                    <div class="matchup-grid matchup-column-header">
+
+                        <div>
+                            TEAM
+                        </div>
+
+                        <div class="text-center">
+                            LINE
+                        </div>
+
+                        <div class="text-center">
+                            PICK
+                        </div>
+
+                    </div>
+
+
+                    <!-- TEAM 1 -->
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/umass.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                UMass Minutemen
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            +29.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_1"
+                                value="umass"
+                            >
+
+                        </div>
+
+                    </label>
+
+
+                    <!-- TEAM 2 -->
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/rutgers.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                Rutgers Scarlet Knights
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            -29.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_1"
+                                value="rutgers"
+                            >
+
+                        </div>
+
+                    </label>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 GAME CARD #2
+            ================================================== -->
+            <section class="locksonly-game-card">
+
+                <div class="locksonly-game-header">
+
+                    <div class="game-time">
+
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="16"
+                                rx="2"
+                            ></rect>
+
+                            <path d="M16 3v4"></path>
+                            <path d="M8 3v4"></path>
+                            <path d="M3 11h18"></path>
+                        </svg>
+
+                        <span>
+                            Thursday, Sep 03
+                        </span>
+
+                        <span class="game-time-divider">
+                            •
+                        </span>
+
+                        <strong>
+                            06:00 PM CT
+                        </strong>
+
+                    </div>
+
+                    <div class="game-header-mark">
+                        ✓
+                    </div>
+
+                </div>
+
+
+                <div class="locksonly-matchup-table">
+
+                    <div class="matchup-grid matchup-column-header">
+
+                        <div>
+                            TEAM
+                        </div>
+
+                        <div class="text-center">
+                            LINE
+                        </div>
+
+                        <div class="text-center">
+                            PICK
+                        </div>
+
+                    </div>
+
+
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/akron.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                Akron Zips
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            +24.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_2"
+                                value="akron"
+                            >
+
+                        </div>
+
+                    </label>
+
+
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/wake-forest.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                Wake Forest Demon Deacons
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            -24.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_2"
+                                value="wake_forest"
+                            >
+
+                        </div>
+
+                    </label>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 GAME CARD #3
+            ================================================== -->
+            <section class="locksonly-game-card">
+
+                <div class="locksonly-game-header">
+
+                    <div class="game-time">
+
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="16"
+                                rx="2"
+                            ></rect>
+
+                            <path d="M16 3v4"></path>
+                            <path d="M8 3v4"></path>
+                            <path d="M3 11h18"></path>
+                        </svg>
+
+                        <span>
+                            Thursday, Sep 03
+                        </span>
+
+                        <span class="game-time-divider">
+                            •
+                        </span>
+
+                        <strong>
+                            06:00 PM CT
+                        </strong>
+
+                    </div>
+
+                    <div class="game-header-mark">
+                        ✓
+                    </div>
+
+                </div>
+
+
+                <div class="locksonly-matchup-table">
+
+                    <div class="matchup-grid matchup-column-header">
+
+                        <div>
+                            TEAM
+                        </div>
+
+                        <div class="text-center">
+                            LINE
+                        </div>
+
+                        <div class="text-center">
+                            PICK
+                        </div>
+
+                    </div>
+
+
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/albany.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                Albany
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            +24.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_3"
+                                value="albany"
+                            >
+
+                        </div>
+
+                    </label>
+
+
+                    <label class="matchup-grid matchup-row">
+
+                        <div class="team-cell">
+
+                            <img
+                                src="/static/images/teams/buffalo.png"
+                                alt=""
+                                class="team-logo"
+                            >
+
+                            <span class="team-name">
+                                Buffalo Bulls
+                            </span>
+
+                        </div>
+
+                        <div class="line-cell">
+                            -24.5
+                        </div>
+
+                        <div class="pick-cell">
+
+                            <input
+                                class="locksonly-radio"
+                                type="radio"
+                                name="game_3"
+                                value="buffalo"
+                            >
+
+                        </div>
+
+                    </label>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 SAVE PICKS
+            ================================================== -->
+            <div class="locksonly-save-area">
+
+                <button
+                    type="submit"
+                    class="btn btn-locksonly-primary btn-save-picks"
+                >
+                    <span class="save-check">
+                        ✓
+                    </span>
+
+                    Save Picks
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</main>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js">
+</script>
+
+</body>
+</html>

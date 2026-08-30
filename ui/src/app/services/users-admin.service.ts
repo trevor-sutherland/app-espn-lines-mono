@@ -26,6 +26,25 @@ export class UsersAdminService {
     });
   }
 
+  createUser(payload: {
+    email: string;
+    password: string;
+    displayName: string;
+  }): Observable<AdminUser> {
+    return this.http.post<AdminUser>(this.baseUrl, payload, {
+      headers: this.auth.authHeaders(),
+    });
+  }
+
+  updateUser(
+    userId: string,
+    payload: { email: string; displayName: string; password?: string },
+  ): Observable<AdminUser> {
+    return this.http.patch<AdminUser>(`${this.baseUrl}/${userId}`, payload, {
+      headers: this.auth.authHeaders(),
+    });
+  }
+
   approve(userId: string): Observable<AdminUser> {
     return this.http.patch<AdminUser>(
       `${this.baseUrl}/${userId}/approve`,

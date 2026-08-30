@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePickDto {
@@ -28,4 +28,10 @@ export class CreatePickDto {
   season!: number;
 
   lockedAt?: Date;
+
+  /** When true, save the current DraftKings line even if it differs from `line`. */
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  acceptChangedLine?: boolean;
 }

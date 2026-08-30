@@ -313,4 +313,84 @@ export class OddsService {
       .find(filter)
       .lean();
   }
+
+  async refreshAllSports(): Promise<{ updated: number; inserted: number }> {
+    const sports = [
+      'americanfootball_nfl',
+      'americanfootball_ncaaf',
+      'basketball_nba',
+      'basketball_ncaab',
+    ];
+    let updated = 0;
+    let inserted = 0;
+    for (const sportKey of sports) {
+      try {
+        const result = await this.fetchAndSaveSportMainlines(sportKey, {
+          allowInsert: true,
+        });
+        updated += result.updated;
+        inserted += result.inserted;
+        this.log.log(
+          `Odds refresh ${sportKey}: updated=${result.updated} inserted=${result.inserted}`,
+        );
+      } catch (err) {
+        this.log.error(
+          `Odds refresh failed for ${sportKey}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+    return { updated, inserted };
+  }
+
+  /**
+   * Pull the current DraftKings spread for one event/team and persist it.
+   * Falls back to the last saved Mongo line if the live request fails.
+   */
+  async getDraftKingsSpread(
+    eventId: string,
+    team: string,
+  ): Promise<{ line: number } | null> {
+    const teamKey = team.trim().toLowerCase();
+    const stored = await this.oddsModel
+      .findOne({ eventId, market: 'spreads' })
+      .lean();
+    const sport = stored?.sport;
+    if (sport) {
+      try {
+        const result = await this.fetchAndSaveSportMainlines(sport, {
+          eventIds: eventId,
+          allowInsert: true,
+        });
+        const live = result.rows.find(
+          (row) =>
+            row.market === 'spreads' &&
+            (row.team || '').toLowerCase() === teamKey,
+        );
+        if (live?.line != null) {
+          return { line: live.line };
+        }
+      } catch (err) {
+        this.log.warn(
+          `Live DraftKings check failed for ${eventId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    const fallback = await this.oddsModel
+      .findOne({
+        eventId,
+        market: 'spreads',
+        team: { $regex: new RegExp(`^${this.escapeRegex(team.trim())}$`, 'i') },
+      })
+      .lean();
+    return fallback?.line != null ? { line: fallback.line } : null;
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 }

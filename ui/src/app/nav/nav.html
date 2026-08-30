@@ -1,100 +1,117 @@
 @if (auth.isLoggedIn()) {
-  <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom mb-3">
-    <div class="container-fluid">
-      <a class="navbar-brand" routerLink="/pick">Spreadhead Picks</a>
+  <nav class="navbar navbar-expand-lg navbar-dark locksonly-navbar">
+    <div class="container-xl">
+      <a class="navbar-brand locksonly-brand" routerLink="/pick">
+        <img
+          src="/assets/locksonly-logo.png"
+          alt="LocksOnly"
+          class="locksonly-logo"
+        />
+      </a>
 
-      <div class="navbar-nav me-auto flex-row gap-2 flex-wrap">
-        <a
-          class="nav-link"
-          routerLink="/pick"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-        >
-          Picks
-        </a>
-        <a
-          class="nav-link"
-          routerLink="/picks-summary"
-          routerLinkActive="active"
-        >
-          Weekly Summary
-        </a>
-        <a
-          class="nav-link"
-          routerLink="/results"
-          routerLinkActive="active"
-        >
-          Results
-        </a>
-        <a
-          class="nav-link"
-          routerLink="/account"
-          routerLinkActive="active"
-        >
-          Account
-        </a>
-        @if (auth.isAdmin()) {
-          <a
-            class="nav-link"
-            routerLink="/admin/users"
-            routerLinkActive="active"
-          >
-            Users
-          </a>
-          <a
-            class="nav-link"
-            routerLink="/admin/pot"
-            routerLinkActive="active"
-          >
-            Pot
-          </a>
-        }
-      </div>
+      <button
+        class="navbar-toggler locksonly-toggler"
+        type="button"
+        aria-controls="locksOnlyNavbar"
+        [attr.aria-expanded]="!navCollapsed"
+        aria-label="Toggle navigation"
+        (click)="toggleNav()"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <label class="visually-hidden" for="sport-select">Select sport</label>
-        <select
-          id="sport-select"
-          class="form-select form-select-sm w-auto"
-          [ngModel]="sportService.sportKey()"
-          (ngModelChange)="sportService.setSportKey($event)"
-        >
-          @for (sport of sports; track sport.key) {
-            <option [value]="sport.key">{{ sport.label }}</option>
+      <div
+        class="collapse navbar-collapse"
+        [class.show]="!navCollapsed"
+        id="locksOnlyNavbar"
+      >
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0 locksonly-main-nav">
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              routerLink="/pick"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+            >
+              Picks
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/picks-summary" routerLinkActive="active">
+              Weekly Summary
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/results" routerLinkActive="active">
+              Results
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="/account" routerLinkActive="active">
+              Account
+            </a>
+          </li>
+          @if (auth.isAdmin()) {
+            <li class="nav-item">
+              <a class="nav-link" routerLink="/admin/users" routerLinkActive="active">
+                Users
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" routerLink="/admin/pot" routerLinkActive="active">
+                Pot
+              </a>
+            </li>
           }
-        </select>
+        </ul>
 
-        @if (auth.isAdmin()) {
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-primary"
-            (click)="onRefreshOdds()"
-            [disabled]="refreshing"
+        <div class="locksonly-nav-actions">
+          <label class="visually-hidden" for="sport-select">Select sport</label>
+          <select
+            id="sport-select"
+            class="form-select locksonly-sport-select"
+            [ngModel]="sportService.sportKey()"
+            (ngModelChange)="sportService.setSportKey($event)"
           >
-            @if (refreshing) {
-              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            @for (sport of sports; track sport.key) {
+              <option [value]="sport.key">{{ sport.label }}</option>
             }
-            Refresh Odds
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-primary"
-            (click)="onSyncResults()"
-            [disabled]="syncingResults"
-          >
-            @if (syncingResults) {
-              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-            }
-            Sync Results
-          </button>
-        }
+          </select>
 
-        <span class="navbar-text small text-muted d-none d-md-inline">
-          {{ auth.session()?.email }}
-        </span>
-        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="logout()">
-          Log out
-        </button>
+          @if (auth.isAdmin()) {
+            <div class="locksonly-nav-admin">
+              <button
+                type="button"
+                class="btn btn-locksonly-outline"
+                (click)="onRefreshOdds()"
+                [disabled]="refreshing"
+              >
+                @if (refreshing) {
+                  <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                }
+                Refresh Odds
+              </button>
+              <button
+                type="button"
+                class="btn btn-locksonly-outline"
+                (click)="onSyncResults()"
+                [disabled]="syncingResults"
+              >
+                @if (syncingResults) {
+                  <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                }
+                Sync Results
+              </button>
+            </div>
+          }
+
+          <span class="locksonly-user-email">
+            {{ auth.session()?.email }}
+          </span>
+          <button type="button" class="btn btn-locksonly-outline" (click)="logout()">
+            Log Out
+          </button>
+        </div>
       </div>
     </div>
   </nav>

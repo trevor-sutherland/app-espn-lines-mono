@@ -1,12 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as argon2 from 'argon2';
 import { User, UserDocument, UserRole } from './users.schema';
+import type { CreateUserDto } from './dto/create-user.dto';
+import type { UpdateUserDto } from './dto/update-user.dto';
 
 export type PublicUser = {
   id: string;
@@ -50,6 +54,62 @@ export class UsersService implements OnModuleInit {
       .sort({ createdAt: -1 })
       .exec();
     return users.map((u) => this.toPublic(u));
+  }
+
+  async createUser(dto: CreateUserDto): Promise<PublicUser> {
+    const email = dto.email.trim().toLowerCase();
+    const displayName = dto.displayName.trim();
+    if (!displayName) {
+      throw new BadRequestException('Display name is required');
+    }
+    const existing = await this.userModel.findOne({ email });
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
+    const role: UserRole = dto.role === 'admin' ? 'admin' : 'user';
+    const user = await this.userModel.create({
+      email,
+      passwordHash: await argon2.hash(dto.password),
+      displayName,
+      role,
+      approved: true,
+      active: true,
+    });
+    return this.toPublic(user);
+  }
+
+  async updateUser(userId: string, dto: UpdateUserDto): Promise<PublicUser> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const displayName = dto.displayName.trim();
+    if (!displayName) {
+      throw new BadRequestException('Display name is required');
+    }
+
+    const email = dto.email.trim().toLowerCase();
+    if (email !== user.email) {
+      const taken = await this.userModel.findOne({
+        email,
+        _id: { $ne: user._id },
+      });
+      if (taken) {
+        throw new ConflictException('Email already in use');
+      }
+      user.email = email;
+      user.pendingEmail = undefined;
+      user.emailChangeToken = undefined;
+      user.emailChangeTokenExpires = undefined;
+    }
+
+    user.displayName = displayName;
+    if (dto.password) {
+      user.passwordHash = await argon2.hash(dto.password);
+    }
+    await user.save();
+    return this.toPublic(user);
   }
 
   async setApproved(userId: string, approved: boolean): Promise<PublicUser> {

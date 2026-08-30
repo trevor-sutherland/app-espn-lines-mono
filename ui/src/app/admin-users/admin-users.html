@@ -1,12 +1,109 @@
-<div class="container py-4">
+<main class="locksonly-page">
+<div class="container-xl">
   <h1>User access</h1>
   <p class="text-muted">
-    Approve new signups, toggle admin, or deactivate accounts (users stay in the list).
+    Create accounts, approve new signups, toggle admin, or deactivate users.
   </p>
 
   @if (error()) {
     <div class="alert alert-danger">{{ error() }}</div>
   }
+  @if (createSuccess()) {
+    <div class="alert alert-success">{{ createSuccess() }}</div>
+  }
+
+  <form class="card mb-4" (ngSubmit)="saveUser($event)" #createForm="ngForm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+        <div>
+          <h2 class="h5 mb-1">{{ isEditing ? 'Edit user' : 'Add user' }}</h2>
+          <p class="text-muted small mb-0">
+            @if (isEditing) {
+              Click Save to update this account. Leave password blank to keep the current one.
+            } @else {
+              Created users are approved immediately and can log in without signing up.
+            }
+          </p>
+        </div>
+        @if (isEditing) {
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="clearForm()">
+            New user
+          </button>
+        }
+      </div>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label" for="new-display-name">Display name</label>
+          <input
+            id="new-display-name"
+            name="newDisplayName"
+            type="text"
+            class="form-control"
+            required
+            [(ngModel)]="newDisplayName"
+            [disabled]="creating()"
+            autocomplete="off"
+          />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="new-email">Email</label>
+          <input
+            id="new-email"
+            name="newEmail"
+            type="email"
+            class="form-control"
+            required
+            [(ngModel)]="newEmail"
+            [disabled]="creating()"
+            autocomplete="off"
+          />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="new-password">Password</label>
+          <input
+            id="new-password"
+            name="newPassword"
+            type="password"
+            class="form-control"
+            [required]="!isEditing"
+            minlength="6"
+            [(ngModel)]="newPassword"
+            [disabled]="creating()"
+            autocomplete="new-password"
+            [placeholder]="isEditing ? 'Leave blank to keep' : ''"
+          />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="new-confirm-password">Confirm password</label>
+          <input
+            id="new-confirm-password"
+            name="newConfirmPassword"
+            type="password"
+            class="form-control"
+            [required]="!isEditing"
+            [(ngModel)]="newConfirmPassword"
+            [disabled]="creating()"
+            autocomplete="new-password"
+          />
+        </div>
+        <div class="col-md-2">
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+            [disabled]="creating() || !canSubmitUser"
+          >
+            @if (creating()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            {{ isEditing ? 'Save changes' : 'Create user' }}
+          </button>
+        </div>
+      </div>
+      @if (newConfirmPassword && newPassword !== newConfirmPassword) {
+        <div class="form-text text-danger mt-2">Passwords do not match.</div>
+      }
+    </div>
+  </form>
 
   <div class="row g-3 mb-3">
     <div class="col-md-6">
@@ -57,7 +154,12 @@
         </thead>
         <tbody>
           @for (user of filteredUsers(); track user.id) {
-            <tr [class.table-secondary]="user.active === false">
+            <tr
+              class="user-row"
+              [class.table-secondary]="user.active === false && editingUserId() !== user.id"
+              [class.table-primary]="editingUserId() === user.id"
+              (click)="selectUser(user)"
+            >
               <td>{{ user.email }}</td>
               <td>{{ user.displayName }}</td>
               <td>
@@ -78,6 +180,7 @@
                     [id]="'admin-' + user.id"
                     [checked]="user.role === 'admin'"
                     [disabled]="busyUserId() === user.id || (isSelf(user) && user.role === 'admin')"
+                    (click)="$event.stopPropagation()"
                     (change)="toggleAdmin(user, $any($event.target).checked)"
                   />
                   <label class="form-check-label" [for]="'admin-' + user.id">Admin</label>
@@ -89,7 +192,7 @@
                     type="button"
                     class="btn btn-sm btn-success me-1"
                     [disabled]="busyUserId() === user.id"
-                    (click)="approve(user)"
+                    (click)="approve(user); $event.stopPropagation()"
                   >
                     Approve
                   </button>
@@ -98,7 +201,7 @@
                     type="button"
                     class="btn btn-sm btn-outline-warning me-1"
                     [disabled]="busyUserId() === user.id"
-                    (click)="deny(user)"
+                    (click)="deny(user); $event.stopPropagation()"
                   >
                     Deny
                   </button>
@@ -109,7 +212,7 @@
                       type="button"
                       class="btn btn-sm btn-outline-success"
                       [disabled]="busyUserId() === user.id"
-                      (click)="reactivate(user)"
+                      (click)="reactivate(user); $event.stopPropagation()"
                     >
                       Activate
                     </button>
@@ -118,7 +221,7 @@
                       type="button"
                       class="btn btn-sm btn-outline-danger"
                       [disabled]="busyUserId() === user.id"
-                      (click)="deactivate(user)"
+                      (click)="deactivate(user); $event.stopPropagation()"
                     >
                       Deactivate
                     </button>
@@ -132,3 +235,4 @@
     </div>
   }
 </div>
+</main>

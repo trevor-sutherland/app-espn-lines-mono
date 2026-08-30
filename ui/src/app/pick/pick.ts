@@ -3,7 +3,6 @@ import { getTeamAbbr } from './../helpers/team-abbreviation';
 import { Component, OnInit, OnDestroy, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { FormsModule } from '@angular/forms';
 import { normalizeOdds } from './pick.interface';
 import { IEvent } from '../models/event.model';
 import { SportService } from '../services/sport.service';
@@ -13,6 +12,7 @@ import { SportsEnum } from '../enums/sports.enum';
 import { DateService } from '../services/date.service';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
+import { formatPicksOpenAt } from '../helpers/season-week';
 
 type SelectedPick = {
   eventId: string;
@@ -20,6 +20,13 @@ type SelectedPick = {
   line: number | null;
   week: number;
   season: number;
+};
+
+type LineChangePrompt = {
+  eventId: string;
+  team: string;
+  submittedLine: number;
+  currentLine: number;
 };
 
 type MyPickResponse = {
@@ -35,7 +42,7 @@ type MyPickResponse = {
 @Component({
   selector: 'app-pick',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './pick.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './pick.scss'
@@ -49,11 +56,15 @@ export class Pick implements OnInit, OnDestroy {
   weekLocked = false;
   submitting = false;
   selectedWeek = 1;
-  maxWeeks = 18;
   currentWeekEnd: Date;
+  weekRangeLabel = '';
+  picksOpen = false;
+  picksOpenLabel = '';
+  lineChange: LineChangePrompt | null = null;
   sportsKeySubject$ = new ReplaySubject<string>(1);
   sportsKey: string;
   eventOddsSubscription: Subscription | null = null;
+  private oddsRefreshTimer: ReturnType<typeof setInterval> | null = null;
   getTeamAbbr = getTeamAbbr;
 
   private http = inject(HttpClient);
@@ -64,46 +75,55 @@ export class Pick implements OnInit, OnDestroy {
   eventOdds: IEventOdds[] = [];
 
   constructor() {
-    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+    this.applyCurrentWeek();
     effect(() => {
       const newKey = this.sportService.sportKey();
       if (this.sportsKey !== newKey) {
         this.sportsKey = newKey;
         this.sportKey = newKey as SportsEnum;
         this.dateService.recomputeSeasonAndWeek();
-        this.selectedWeek = this.dateService.getSelectedWeek();
-        this.maxWeeks = this.dateService.getMaxWeeks();
-        this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+        this.applyCurrentWeek();
         this.sportsKeySubject$.next(newKey);
       }
     });
   }
 
-  onWeekChange(week: number | string) {
-    this.selectedWeek = Number(week);
-    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
-    this.selected = null;
-    this.weekLocked = false;
-    this.setData();
-  }
-
   ngOnInit() {
     this.loading = true;
     this.dateService.recomputeSeasonAndWeek();
-    this.selectedWeek = this.dateService.getSelectedWeek();
-    this.maxWeeks = this.dateService.getMaxWeeks();
-    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+    this.applyCurrentWeek();
     this.sportsKeySubject$.next(this.sportService.sportKey());
     this.setData();
+    this.oddsRefreshTimer = setInterval(() => {
+      if (!this.weekLocked && !this.submitting && !this.lineChange) {
+        this.setData();
+      }
+    }, 60 * 60 * 1000);
+  }
+
+  private applyCurrentWeek(): void {
+    this.selectedWeek = this.dateService.getSelectedWeek();
+    this.currentWeekEnd = this.dateService.getWeekEndDate(this.selectedWeek);
+    this.weekRangeLabel = this.dateService.getWeekRangeLabel(this.selectedWeek);
+    const opensAt = this.dateService.getPicksOpenAt(this.selectedWeek);
+    this.picksOpen = this.dateService.arePicksOpen(this.selectedWeek);
+    this.picksOpenLabel = formatPicksOpenAt(opensAt);
   }
 
   ngOnDestroy(): void {
     this.eventOddsSubscription?.unsubscribe();
+    if (this.oddsRefreshTimer) {
+      clearInterval(this.oddsRefreshTimer);
+      this.oddsRefreshTimer = null;
+    }
   }
 
   setData(): void {
     this.eventOddsSubscription?.unsubscribe();
-    this.loading = true;
+    const showSpinner = this.eventOdds.length === 0;
+    if (showSpinner) {
+      this.loading = true;
+    }
     this.error = null;
 
     this.eventOddsSubscription = this.sportsKeySubject$.pipe(
@@ -155,8 +175,16 @@ export class Pick implements OnInit, OnDestroy {
     };
   }
 
+  isSelectedOutcome(eventId: string, team: string): boolean {
+    return this.selected?.eventId === eventId && this.selected?.team === team;
+  }
+
+  get canPick(): boolean {
+    return this.picksOpen && !this.weekLocked && !this.submitting && !this.lineChange;
+  }
+
   selectPick(eventId: string, team: string, line: number) {
-    if (this.weekLocked || this.submitting) return;
+    if (!this.canPick) return;
     this.selected = {
       eventId,
       team,
@@ -166,35 +194,112 @@ export class Pick implements OnInit, OnDestroy {
     };
   }
 
-  submitPick() {
-    if (!this.selected || this.weekLocked) return;
+  isEventSelected(eventId: string): boolean {
+    return this.selected?.eventId === eventId;
+  }
+
+  togglePick(domEvent: Event, eventId: string, team: string, line: number) {
+    if (!this.canPick) {
+      domEvent.preventDefault();
+      return;
+    }
+    if (this.isSelectedOutcome(eventId, team)) {
+      domEvent.preventDefault();
+      this.selected = null;
+      (domEvent.target as HTMLInputElement).checked = false;
+      return;
+    }
+    this.selectPick(eventId, team, line);
+  }
+
+  formatLine(line: number | null | undefined): string {
+    if (line == null || Number.isNaN(Number(line))) {
+      return '—';
+    }
+    const n = Number(line);
+    return `${n > 0 ? '+' : ''}${n}`;
+  }
+
+  onSubmitForm(event: Event): void {
+    event.preventDefault();
+    this.submitPick(false);
+  }
+
+  submitPick(acceptChangedLine = false) {
+    if (!this.selected || this.weekLocked || !this.picksOpen) return;
     this.submitting = true;
     this.error = null;
     const headers = this.auth.authHeaders();
     this.http.post(`${environment.apiBaseUrl}/picks`, {
       ...this.selected,
+      acceptChangedLine,
     }, { headers }).subscribe({
       next: () => {
         this.submitting = false;
         this.weekLocked = true;
+        this.lineChange = null;
       },
       error: (err) => {
         this.submitting = false;
+        const body = err.error;
+        if (err.status === 409 && body?.code === 'LINE_CHANGED') {
+          this.lineChange = {
+            eventId: body.eventId,
+            team: body.team,
+            submittedLine: body.submittedLine,
+            currentLine: body.currentLine,
+          };
+          this.applyLineToBoard(body.eventId, body.team, body.currentLine);
+          return;
+        }
         if (err.status === 409) {
-          // Already locked on server — reload locked state instead of navigating away
           this.setData();
           return;
         }
-        this.error = err.error?.message || 'Could not submit pick.';
+        this.error = body?.message || 'Could not submit pick.';
       },
     });
   }
 
+  approveNewLine(): void {
+    if (!this.lineChange || !this.selected) return;
+    this.selected = {
+      ...this.selected,
+      eventId: this.lineChange.eventId,
+      team: this.lineChange.team,
+      line: this.lineChange.currentLine,
+    };
+    this.submitPick(true);
+  }
+
+  cancelLineChange(): void {
+    this.lineChange = null;
+  }
+
+  private applyLineToBoard(eventId: string, team: string, line: number): void {
+    const teamKey = team.toLowerCase();
+    this.eventOdds = this.eventOdds.map((event) => {
+      if (event.id !== eventId) return event;
+      return {
+        ...event,
+        bookmakers: event.bookmakers.map((bookmaker) => ({
+          ...bookmaker,
+          markets: bookmaker.markets.map((market) => ({
+            ...market,
+            outcomes: market.outcomes.map((outcome) =>
+              outcome.name.toLowerCase() === teamKey
+                ? { ...outcome, point: line }
+                : outcome,
+            ),
+          })),
+        })),
+      };
+    });
+  }
+
   setThisWeekEvents(eventOdds: IEventOdds[]): IEventOdds[] {
-    const weekStart = new Date(this.currentWeekEnd);
-    weekStart.setDate(this.currentWeekEnd.getDate() - 6);
-    weekStart.setHours(0, 0, 0, 0);
-    return eventOdds.filter(eo => {
+    const weekStart = this.dateService.getWeekStartDate(this.selectedWeek);
+    return eventOdds.filter((eo) => {
       const eventDate = new Date(eo.commence_time);
       return eventDate >= weekStart && eventDate <= this.currentWeekEnd;
     });

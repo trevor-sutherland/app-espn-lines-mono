@@ -12,7 +12,9 @@ import { AppModule } from './app/app.module';
 import { connectAndPingMongo } from './lib/mongo-uri';
 
 // Cloud Run + Atlas SRV often resolves IPv6 first and never connects.
+// Some Windows DNS paths refuse Node SRV lookups (querySrv ECONNREFUSED).
 dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) {

@@ -1,58 +1,67 @@
-<div class="container mt-5" style="max-width: 400px;">
-  <h1 class="h3 mb-1 text-center">Spreadhead Picks</h1>
-  <h2 class="mb-4 text-center h5 text-muted">Login</h2>
-  <form (ngSubmit)="onSubmit($event)" #loginForm="ngForm" autocomplete="off">
-  @if (error) {
-    <div class="alert alert-danger">{{ error }}</div>
-  }
-  @if (success) {
-    <div class="alert alert-success">{{ success }}</div>
-  }
-  @if (!error && !success) {
-    <p class="text-muted small text-center mb-3">
-      New accounts require administrator approval before login.
-    </p>
-  }
-
-    <div class="mb-3">
-      <label for="email" class="form-label">Email address</label>
-      <input
-        type="email"
-        class="form-control"
-        id="email"
-        required
-        [(ngModel)]="email"
-        name="email"
-        [disabled]="loading"
-        autocomplete="username"
-        />
+<main class="locksonly-page locksonly-auth">
+  <div class="locksonly-auth-card">
+    <div class="locksonly-auth-brand">
+      <img
+        src="/assets/locksonly-logo.png"
+        alt="LocksOnly"
+        class="locksonly-logo"
+      />
     </div>
-    <div class="mb-3">
-      <label for="password" class="form-label">Password</label>
-      <input
-        type="password"
-        class="form-control"
-        id="password"
-        required
-        [(ngModel)]="password"
-        name="password"
-        [disabled]="loading"
-        autocomplete="current-password"
-        />
-    </div>
-    <button
-      type="submit"
-      class="btn btn-primary w-100"
-      [disabled]="loading || !loginForm.form.valid"
-      >
-      @if (loading) {
-        <span class="spinner-border spinner-border-sm me-2"></span>
+    <h1 class="visually-hidden">LocksOnly</h1>
+    <h2 class="mb-4 text-center h5 text-muted">Login</h2>
+    <form (ngSubmit)="onSubmit($event)" #loginForm="ngForm" autocomplete="off">
+      @if (error) {
+        <div class="alert alert-danger">{{ error }}</div>
       }
-      Login
-    </button>
-  </form>
-  <div class="text-center mt-3 d-flex flex-column gap-1">
-    <button class="btn btn-link" type="button" (click)="onSignup()">Sign up</button>
-    <button class="btn btn-link" type="button" (click)="onPwReset()">Forgot password?</button>
+      @if (success) {
+        <div class="alert alert-success">{{ success }}</div>
+      }
+      @if (!error && !success) {
+        <p class="text-muted small text-center mb-3">
+          New accounts require administrator approval before login.
+        </p>
+      }
+
+      <div class="mb-3">
+        <label for="email" class="form-label">Email address</label>
+        <input
+          type="email"
+          class="form-control"
+          id="email"
+          required
+          [(ngModel)]="email"
+          name="email"
+          [disabled]="loading"
+          autocomplete="username"
+        />
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input
+          type="password"
+          class="form-control"
+          id="password"
+          required
+          [(ngModel)]="password"
+          name="password"
+          [disabled]="loading"
+          autocomplete="current-password"
+        />
+      </div>
+      <button
+        type="submit"
+        class="btn btn-locksonly-primary w-100"
+        [disabled]="loading || !loginForm.form.valid"
+      >
+        @if (loading) {
+          <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        Login
+      </button>
+    </form>
+    <div class="text-center mt-3 d-flex flex-column gap-1">
+      <button class="btn btn-link" type="button" (click)="onSignup()">Sign up</button>
+      <button class="btn btn-link" type="button" (click)="onPwReset()">Forgot password?</button>
+    </div>
   </div>
-</div>
+</main>

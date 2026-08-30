@@ -11,5 +11,5 @@ import { NavComponent } from './nav/nav';
   imports: [RouterOutlet, NavComponent],
 })
 export class App {
-  protected readonly title = signal('Spreadhead Picks');
+  protected readonly title = signal('LocksOnly');
 }

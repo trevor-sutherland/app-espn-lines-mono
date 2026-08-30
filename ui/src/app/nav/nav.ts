@@ -3,8 +3,10 @@ import {
   ChangeDetectionStrategy,
   inject,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { SportService } from '../services/sport.service';
 import { NflOddsService } from '../services/sport-odds-service';
@@ -24,9 +26,26 @@ export class NavComponent {
   readonly sportService = inject(SportService);
   private readonly oddsService = inject(NflOddsService);
   private readonly resultsService = inject(ResultsService);
+  private readonly router = inject(Router);
 
   refreshing = false;
   syncingResults = false;
+  navCollapsed = true;
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => {
+        this.navCollapsed = true;
+      });
+  }
+
+  toggleNav(): void {
+    this.navCollapsed = !this.navCollapsed;
+  }
 
   readonly sports = [
     { key: SportsEnum.NFL, label: 'NFL' },

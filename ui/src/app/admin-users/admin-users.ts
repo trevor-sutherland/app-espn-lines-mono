@@ -25,9 +25,17 @@ export class AdminUsersComponent implements OnInit {
   readonly users = signal<AdminUser[]>([]);
   readonly loading = signal(true);
   readonly busyUserId = signal<string | null>(null);
+  readonly creating = signal(false);
+  readonly editingUserId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
+  readonly createSuccess = signal<string | null>(null);
   readonly search = signal('');
   readonly statusFilter = signal<StatusFilter>('all');
+
+  newDisplayName = '';
+  newEmail = '';
+  newPassword = '';
+  newConfirmPassword = '';
 
   readonly filteredUsers = computed(() => {
     const q = this.search().trim().toLowerCase();
@@ -78,6 +86,110 @@ export class AdminUsersComponent implements OnInit {
 
   isSelf(user: AdminUser): boolean {
     return user.id === this.auth.session()?.userId;
+  }
+
+  get isEditing(): boolean {
+    return !!this.editingUserId();
+  }
+
+  get passwordsMatch(): boolean {
+    return this.newPassword === this.newConfirmPassword;
+  }
+
+  get canSubmitUser(): boolean {
+    if (!this.newDisplayName.trim() || !this.newEmail.trim() || !this.passwordsMatch) {
+      return false;
+    }
+    if (this.isEditing) {
+      return !this.newPassword || this.newPassword.length >= 6;
+    }
+    return this.newPassword.length >= 6;
+  }
+
+  selectUser(user: AdminUser): void {
+    this.editingUserId.set(user.id);
+    this.newDisplayName = user.displayName || '';
+    this.newEmail = user.email;
+    this.newPassword = '';
+    this.newConfirmPassword = '';
+    this.error.set(null);
+    this.createSuccess.set(null);
+  }
+
+  clearForm(): void {
+    this.editingUserId.set(null);
+    this.newDisplayName = '';
+    this.newEmail = '';
+    this.newPassword = '';
+    this.newConfirmPassword = '';
+    this.error.set(null);
+    this.createSuccess.set(null);
+  }
+
+  private resetFields(): void {
+    this.editingUserId.set(null);
+    this.newDisplayName = '';
+    this.newEmail = '';
+    this.newPassword = '';
+    this.newConfirmPassword = '';
+  }
+
+  saveUser(e: Event): void {
+    e.preventDefault();
+    this.error.set(null);
+    this.createSuccess.set(null);
+    if (!this.canSubmitUser) {
+      this.error.set(
+        this.isEditing
+          ? 'Fill in name and email. If changing the password, use 6+ matching characters.'
+          : 'Fill in name, email, and matching passwords (6+ characters).',
+      );
+      return;
+    }
+    this.creating.set(true);
+    if (this.isEditing) {
+      const userId = this.editingUserId() as string;
+      this.usersApi
+        .updateUser(userId, {
+          email: this.newEmail.trim(),
+          displayName: this.newDisplayName.trim(),
+          ...(this.newPassword ? { password: this.newPassword } : {}),
+        })
+        .subscribe({
+          next: (updated) => {
+            this.users.update((list) =>
+              list.map((u) => (u.id === userId ? updated : u)),
+            );
+            this.createSuccess.set(`Saved changes for ${updated.email}.`);
+            this.newPassword = '';
+            this.newConfirmPassword = '';
+            this.creating.set(false);
+          },
+          error: (err) => {
+            this.error.set(err.error?.message || 'Could not save user');
+            this.creating.set(false);
+          },
+        });
+      return;
+    }
+    this.usersApi
+      .createUser({
+        email: this.newEmail.trim(),
+        password: this.newPassword,
+        displayName: this.newDisplayName.trim(),
+      })
+      .subscribe({
+        next: (created) => {
+          this.users.update((list) => [created, ...list]);
+          this.resetFields();
+          this.createSuccess.set(`${created.email} can log in now (already approved).`);
+          this.creating.set(false);
+        },
+        error: (err) => {
+          this.error.set(err.error?.message || 'Could not create user');
+          this.creating.set(false);
+        },
+      });
   }
 
   approve(user: AdminUser): void {

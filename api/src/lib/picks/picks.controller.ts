@@ -5,12 +5,16 @@ import {
   UseGuards,
   Req,
   ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Get,
   Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PicksService } from './picks.service';
 import { CreatePickDto } from './dto/create-pick.dto';
+import { OddsService } from '../odds/odds.service';
 import type { Request } from 'express';
 import { getCurrentSeasonAndWeek } from '../utils/seasson-week.util';
 
@@ -27,7 +31,10 @@ declare module 'express-serve-static-core' {
 
 @Controller('picks')
 export class PicksController {
-  constructor(private readonly picksService: PicksService) {}
+  constructor(
+    private readonly picksService: PicksService,
+    private readonly oddsService: OddsService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -36,7 +43,14 @@ export class PicksController {
     const user = req.user as { userId?: string; sub?: string };
     const userId = user.userId || user.sub;
     if (!userId) throw new ConflictException('User not authenticated');
-    const { season, week } = createPickDto
+    const current = getCurrentSeasonAndWeek();
+    if (!current.picksOpen) {
+      throw new ForbiddenException(
+        `Picks open Tuesday at 12:00 AM Central. This week is ${current.rangeLabel}.`,
+      );
+    }
+    const season = current.season;
+    const week = current.week;
     console.log(createPickDto);
 
     // Check for existing pick
@@ -49,11 +63,46 @@ export class PicksController {
       throw new ConflictException('You already made a pick for this week');
     }
 
+    const live = await this.oddsService.getDraftKingsSpread(
+      createPickDto.eventId,
+      createPickDto.team,
+    );
+    if (!live) {
+      throw new HttpException(
+        {
+          code: 'LINE_UNAVAILABLE',
+          message: 'Could not verify the current DraftKings line. Try again.',
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const submittedLine = Number(createPickDto.line);
+    const currentLine = Number(live.line);
+    if (
+      Number.isFinite(submittedLine) &&
+      submittedLine !== currentLine &&
+      !createPickDto.acceptChangedLine
+    ) {
+      throw new HttpException(
+        {
+          code: 'LINE_CHANGED',
+          message: 'The DraftKings line has changed.',
+          eventId: createPickDto.eventId,
+          team: createPickDto.team,
+          submittedLine,
+          currentLine,
+        },
+        HttpStatus.CONFLICT,
+      );
+    }
+
     const pickToSave = {
       ...createPickDto,
       userId,
       season,
       week,
+      line: currentLine,
       lockedAt: new Date(),
     };
 

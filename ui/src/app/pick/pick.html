@@ -1,107 +1,242 @@
-<div class="container mt-4">
-  <h2 class="mb-4 text-center" style="text-transform: uppercase;">This Week's {{ getSportAbbr()}} Games</h2>
-  @if(loading) {
-    <div class="text-center my-5">
-      <div class="spinner-border"></div>
-    </div>
-  }
-  @if(error) {
-    <div class="alert alert-danger">{{ error }}</div>
-  }
-  @if(!loading) {
-    <div class="mb-3">
-      <label for="week-select" class="form-label">Select Week:</label>
-      <select
-        id="week-select"
-        name="week"
-        class="form-select"
-        [ngModel]="selectedWeek"
-        (ngModelChange)="onWeekChange($event)"
-      >
-        @for(week of [].constructor(maxWeeks); track $index) {
-          <option [ngValue]="$index + 1">Week {{ $index + 1 }}</option>
-        }
-      </select>
-    </div>
-  }
-  @if(!loading && weekLocked && selected) {
-    <div class="alert alert-success text-center">
-      Week {{ selected.week }} is locked. Your pick:
-      <strong>{{ selected.team }}</strong>
-      @if (selected.line != null) {
-        <span>({{ selected.line > 0 ? '+' : '' }}{{ selected.line }})</span>
+<main class="locksonly-page">
+  <div class="container-xl">
+    <section class="locksonly-page-header text-center">
+      <h1>This Week's {{ getSportAbbr().toUpperCase() }} Games</h1>
+      @if (!loading) {
+        <div class="locksonly-week-label">
+          Week {{ selectedWeek }}
+          <span class="week-dot">•</span>
+          {{ weekRangeLabel }}
+        </div>
       }
-    </div>
-  }
-  @if(!loading && eventOdds.length) {
-    <form (ngSubmit)="submitPick()">
-      @for(event of eventOdds; track event.id) {
-        @if(event.bookmakers.length !== 0) {
-          <div class="card mb-4" [class.border-success]="weekLocked && selected?.eventId === event.id">
-            <div class="card-header bg-dark text-light d-flex justify-content-center">
-              <span>{{ event.commence_time | date:'EEEE MMM dd hh:mm a' }}</span>
-            </div>
-            <div class="card-body">
-              @for(bookmaker of event.bookmakers; track bookmaker.key) {
-                <table class="table table-sm table-bordered align-middle">
-                  <thead>
-                    <tr>
-                      <th class="text-center" style="width:5%;"></th>
-                      <th class="text-center" style="width:55%;">Team</th>
-                      <th class="text-center" style="width:20%;">Line</th>
-                      <th class="text-center" style="width:20%;">Pick</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for(market of bookmaker.markets; track market.key) {
-                      @for(outcome of market.outcomes; track outcome.name) {
-                        <tr [class.table-success]="weekLocked && selected?.eventId === event.id && selected?.team === outcome.name">
-                          <td class="text-center" style="width:5%;">
-                            @if(getTeamAbbr(outcome.name, sportKey)) {
-                              <img
-                                [src]="teamLogoUrl(outcome.name)"
-                                (error)="onLogoError($event)"
-                                alt="{{ outcome.name }}"
-                                style="height: 24px; width: 24px; vertical-align: middle; margin-right: 6px;" />
-                            }
-                          </td>
-                          <td class="text-center" style="width:55%;">{{ outcome.name }}</td>
-                          <td class="text-center" style="width:20%;">{{ outcome.point || '-' }}</td>
-                          <td class="text-center" style="width:20%;">
-                            <input
-                              type="radio"
-                              name="pick"
-                              [value]="event.id + outcome.name + bookmaker.key + market.key"
-                              [checked]="selected?.eventId === event.id && selected?.team === outcome.name"
-                              (change)="selectPick(event.id, outcome.name, outcome.point)"
-                              [disabled]="submitting || weekLocked" />
-                          </td>
-                        </tr>
-                      }
+    </section>
+
+    @if (loading) {
+      <div class="text-center my-5">
+        <div class="spinner-border" role="status"></div>
+      </div>
+    }
+
+    @if (error) {
+      <div class="locksonly-notice locksonly-notice--danger" role="alert">
+        {{ error }}
+      </div>
+    }
+
+    @if (!loading && !picksOpen && !weekLocked) {
+      <div class="locksonly-notice">
+        <div class="locksonly-notice-icon" aria-hidden="true">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 7v5l3 2"></path>
+          </svg>
+        </div>
+        <div>
+          <strong>Picks open {{ picksOpenLabel }}.</strong>
+          You can view this week's games now; submissions start Tuesday at 12:00 AM Central.
+        </div>
+      </div>
+    }
+
+    @if (!loading && weekLocked && selected) {
+      <div class="locksonly-notice locksonly-notice--success">
+        <div>
+          Week {{ selected.week }} is locked. Your pick:
+          <strong>{{ selected.team }}</strong>
+          @if (selected.line != null) {
+            <span>({{ formatLine(selected.line) }})</span>
+          }
+        </div>
+      </div>
+    }
+
+    @if (!loading && eventOdds.length) {
+      <form (submit)="onSubmitForm($event)">
+        @for (event of eventOdds; track event.id) {
+          @if (event.bookmakers.length !== 0) {
+            <section class="locksonly-game-card">
+              <div class="locksonly-game-header">
+                <div class="game-time">
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M16 3v4"></path>
+                    <path d="M8 3v4"></path>
+                    <path d="M3 11h18"></path>
+                  </svg>
+                  <span>{{ event.commence_time | date:'EEEE, MMM dd':'America/Chicago' }}</span>
+                  <span class="game-time-divider">•</span>
+                  <strong>{{ event.commence_time | date:'h:mm a':'America/Chicago' }} CT</strong>
+                </div>
+                <div class="game-header-end">
+                  <div class="game-header-football" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+                      <ellipse
+                        cx="12"
+                        cy="12"
+                        rx="9"
+                        ry="6"
+                        transform="rotate(-28 12 12)"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                      />
+                      <path
+                        d="M8.2 13.4 15.8 10.6"
+                        stroke="currentColor"
+                        stroke-width="1.4"
+                        stroke-linecap="round"
+                      />
+                      <path
+                        d="M10.2 12.2v1.5M12 11.5v1.5M13.8 10.8v1.5"
+                        stroke="currentColor"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                  </div>
+                  @if (isEventSelected(event.id)) {
+                    <div class="game-header-mark" aria-hidden="true">✓</div>
+                  }
+                </div>
+              </div>
+
+              @for (bookmaker of event.bookmakers; track bookmaker.key) {
+                <div class="locksonly-matchup-table">
+                  <div class="matchup-grid matchup-column-header">
+                    <div>TEAM</div>
+                    <div class="text-center">LINE</div>
+                    <div class="text-center">PICK</div>
+                  </div>
+                  @for (market of bookmaker.markets; track market.key) {
+                    @for (outcome of market.outcomes; track outcome.name) {
+                      <label
+                        class="matchup-grid matchup-row"
+                        [class.is-locked]="!canPick"
+                      >
+                        <div class="team-cell">
+                          @if (getTeamAbbr(outcome.name, sportKey)) {
+                            <img
+                              class="team-logo"
+                              [src]="teamLogoUrl(outcome.name)"
+                              (error)="onLogoError($event)"
+                              alt=""
+                            />
+                          }
+                          <span class="team-name">{{ outcome.name }}</span>
+                        </div>
+                        <div class="line-cell">{{ formatLine(outcome.point) }}</div>
+                        <div class="pick-cell">
+                          <input
+                            class="locksonly-radio"
+                            type="radio"
+                            name="pick"
+                            [value]="event.id + outcome.name + bookmaker.key + market.key"
+                            [checked]="isSelectedOutcome(event.id, outcome.name)"
+                            (click)="$event.stopPropagation(); togglePick($event, event.id, outcome.name, outcome.point)"
+                            [disabled]="!canPick"
+                            [attr.aria-label]="'Pick ' + outcome.name"
+                          />
+                        </div>
+                      </label>
                     }
-                  </tbody>
-                </table>
+                  }
+                </div>
               }
-            </div>
+            </section>
+          }
+        }
+
+        @if (canPick) {
+          <div class="locksonly-save-area">
+            <button
+              class="btn btn-locksonly-primary btn-save-picks"
+              type="submit"
+              [disabled]="!selected || submitting"
+            >
+              @if (submitting) {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+              } @else {
+                <span class="save-check" aria-hidden="true">✓</span>
+              }
+              Submit Pick
+            </button>
           </div>
         }
-      }
+      </form>
+    }
 
-      <div class="text-center">
-        @if (weekLocked) {
-          <button class="btn btn-secondary" type="button" disabled>
-            Pick locked for this week
-          </button>
-        } @else {
-          <button class="btn btn-primary" type="submit" [disabled]="!selected || submitting">
-            @if(submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-            Submit Pick
-          </button>
-        }
+    @if (!loading && !eventOdds.length) {
+      <div class="locksonly-notice locksonly-notice--info">
+        No games found for this week.
       </div>
-    </form>
-  }
-  @if(!loading && !eventOdds.length) {
-    <div class="alert alert-info text-center">No games found for this week.</div>
-  }
-</div>
+    }
+  </div>
+</main>
+
+@if (lineChange) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="line-change-title">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="line-change-title">Line has changed</h2>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+            (click)="cancelLineChange()"
+            [disabled]="submitting"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            The DraftKings line for <strong>{{ lineChange.team }}</strong> moved from
+            <strong>{{ formatLine(lineChange.submittedLine) }}</strong>
+            to
+            <strong>{{ formatLine(lineChange.currentLine) }}</strong>.
+          </p>
+          <p class="mb-0">Approve the new line to submit this pick?</p>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="cancelLineChange()"
+            [disabled]="submitting"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-locksonly-primary"
+            (click)="approveNewLine()"
+            [disabled]="submitting"
+          >
+            @if (submitting) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Approve {{ formatLine(lineChange.currentLine) }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

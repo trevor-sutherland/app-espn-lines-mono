@@ -1,6 +1,14 @@
-<div class="container mt-5" style="max-width: 400px;">
-  <h1 class="h3 mb-1 text-center">Spreadhead Picks</h1>
-  <h2 class="mb-4 text-center h5 text-muted">Sign Up</h2>
+<main class="locksonly-page locksonly-auth">
+  <div class="locksonly-auth-card">
+    <div class="locksonly-auth-brand">
+      <img
+        src="/assets/LocksOnly%20Logo.png"
+        alt="LocksOnly"
+        class="locksonly-logo"
+      />
+    </div>
+    <h1 class="visually-hidden">LocksOnly</h1>
+    <h2 class="mb-4 text-center h5 text-muted">Sign Up</h2>
   <form (ngSubmit)="onSubmit($event)" #signupForm="ngForm" autocomplete="off">
     @if (error) {
       <div class="alert alert-danger">{{ error }}</div>
@@ -66,7 +74,7 @@
     </div>
     <button
       type="submit"
-      class="btn btn-success w-100"
+      class="btn btn-locksonly-primary w-100"
       [disabled]="loading || signupForm.invalid || !passwordsMatch"
     >
       @if (loading) {
@@ -78,4 +86,5 @@
   <div class="text-center mt-3">
     <a [routerLink]="['/login']" class="btn btn-link">Already have an account? Login</a>
   </div>
-</div>
+  </div>
+</main>
