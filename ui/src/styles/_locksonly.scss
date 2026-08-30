@@ -1215,14 +1215,23 @@ body.locksonly-body {
 
         border:
             1px solid
-            rgba(255,255,255,0.25);
+            rgba(255, 255, 255, 0.65);
+
+    }
+
+    .locksonly-toggler:focus {
+
+        box-shadow:
+            0 0 0 0.18rem
+            rgba(255, 255, 255, 0.25);
 
     }
 
     .locksonly-toggler .navbar-toggler-icon {
 
-        filter:
-            invert(1);
+        filter: none;
+
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 25h22'/%3e%3c/svg%3e");
 
     }
 
