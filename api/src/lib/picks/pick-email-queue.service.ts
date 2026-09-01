@@ -8,15 +8,16 @@ import {
   PickEmailOutboxDocument,
 } from './pick-email-outbox.schema';
 
-const DEFAULT_DELAY_MS = 2 * 60 * 1000;
+/** Send as soon as the pick is queued so Cloud Run cannot scale to zero first. */
+const DEFAULT_DELAY_MS = 0;
 const STALE_SENDING_MS = 2 * 60 * 1000;
 const GAP_BETWEEN_SENDS_MS = 1500;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 8;
 
 @Injectable()
 export class PickEmailQueueService implements OnModuleInit {
   private readonly log = new Logger(PickEmailQueueService.name);
-  private draining = false;
+  private drainTail: Promise<void> = Promise.resolve();
 
   constructor(
     @InjectModel(PickEmailOutbox.name)
@@ -78,24 +79,34 @@ export class PickEmailQueueService implements OnModuleInit {
     await this.drainDue();
   }
 
-  async drainDue(): Promise<void> {
-    if (this.draining) return;
-    this.draining = true;
+  /**
+   * Serial drain so overlapping pick submits cannot skip a newly queued job.
+   */
+  drainDue(): Promise<void> {
+    const run = this.drainTail.then(() => this.drainDueUnsafe());
+    this.drainTail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async drainDueUnsafe(): Promise<void> {
     try {
       await this.reclaimStale();
+      let sent = false;
       for (;;) {
         const job = await this.claimNext();
         if (!job) break;
+        if (sent) await delay(GAP_BETWEEN_SENDS_MS);
         await this.sendClaimed(job);
-        await delay(GAP_BETWEEN_SENDS_MS);
+        sent = true;
       }
     } catch (err) {
       this.log.error(
         'Pick email drain failed',
         err instanceof Error ? err.stack ?? err.message : String(err),
       );
-    } finally {
-      this.draining = false;
     }
   }
 
@@ -125,22 +136,24 @@ export class PickEmailQueueService implements OnModuleInit {
   private async sendClaimed(job: PickEmailOutboxDocument): Promise<void> {
     const pickId = String(job.pickId);
     try {
-      await this.mailerService.sendMail({
+      const info = await this.mailerService.sendMail({
         to: job.to,
         subject: job.subject,
         text: job.text,
         template: 'pick-announcement',
         context: { body: job.text },
-        headers: {
-          'Message-ID': `<pick-${pickId}@locksonly>`,
-        },
       });
       job.status = 'sent';
       job.sentAt = new Date();
       job.lastError = undefined;
       job.claimedAt = undefined;
       await job.save();
-      this.log.log(`Pick notification sent for pick ${pickId}`);
+      const accepted = Array.isArray(info?.accepted)
+        ? info.accepted.join(',')
+        : '';
+      this.log.log(
+        `Pick notification sent for pick ${pickId} messageId=${String(info?.messageId ?? '')} accepted=${accepted}`,
+      );
     } catch (err) {
       const message =
         err instanceof Error ? err.stack ?? err.message : String(err);
@@ -155,7 +168,11 @@ export class PickEmailQueueService implements OnModuleInit {
         );
       } else {
         job.status = 'pending';
-        job.availableAt = new Date(Date.now() + this.delayMs());
+        const backoffMs = Math.min(
+          10 * 60 * 1000,
+          this.delayMs() + job.attempts * 15_000,
+        );
+        job.availableAt = new Date(Date.now() + Math.max(backoffMs, 15_000));
         this.log.error(
           `Pick notification send failed for pick ${pickId}; retry ${job.attempts}/${MAX_ATTEMPTS} at ${job.availableAt.toISOString()}`,
           message,

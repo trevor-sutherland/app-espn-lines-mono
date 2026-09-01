@@ -4,11 +4,10 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/users.schema';
 import { OddsLatest, OddsLatestDocument } from '../odds/odds.schema';
 import { PickDocument } from './picks.schema';
-import { formatPickAnnouncement } from './pick-announcement';
+import { formatPickAnnouncement, formatPickAnnouncementSubject } from './pick-announcement';
 import { PickEmailQueueService } from './pick-email-queue.service';
 
 const PICK_NOTIFY_TO = 'locksonlygame@yahoo.com';
-const PICK_NOTIFY_SUBJECT = 'LOCKSONLY';
 
 @Injectable()
 export class PickNotificationService {
@@ -23,7 +22,8 @@ export class PickNotificationService {
   ) {}
 
   /**
-   * Queue a confirmation email. Never throws — pick save must not roll back.
+   * Queue a confirmation email and drain due jobs before returning.
+   * Never throws — pick save must not roll back.
    */
   async notifySavedPick(pick: PickDocument): Promise<void> {
     try {
@@ -32,13 +32,7 @@ export class PickNotificationService {
         .select('displayName')
         .lean()
         .exec();
-      const displayName = user?.displayName?.trim();
-      if (!displayName) {
-        this.log.warn(
-          `Skipping pick notification: no display name for user ${String(pick.userId)}`,
-        );
-        return;
-      }
+      const displayName = user?.displayName?.trim() || 'Unknown';
 
       const market = pick.market === 'totals' ? 'totals' : 'spreads';
       const savedLine = Number(pick.line);
@@ -53,14 +47,13 @@ export class PickNotificationService {
       let homeTeam: string | undefined;
       if (market === 'totals') {
         const matchup = await this.getStoredMatchup(pick.eventId);
+        awayTeam = matchup?.awayTeam;
+        homeTeam = matchup?.homeTeam;
         if (!matchup) {
           this.log.warn(
-            `Skipping totals pick notification: no stored matchup for event ${pick.eventId}`,
+            `Totals pick ${String(pick._id)} has no stored matchup; sending side/line only`,
           );
-          return;
         }
-        awayTeam = matchup.awayTeam;
-        homeTeam = matchup.homeTeam;
       }
 
       const body = formatPickAnnouncement({
@@ -82,9 +75,10 @@ export class PickNotificationService {
       await this.queue.enqueue({
         pickId: String(pick._id),
         to: PICK_NOTIFY_TO,
-        subject: PICK_NOTIFY_SUBJECT,
+        subject: formatPickAnnouncementSubject(displayName),
         text: body,
       });
+      await this.queue.drainDue();
     } catch (err) {
       this.log.error(
         `Failed to queue pick notification for pick ${String(pick._id)}`,

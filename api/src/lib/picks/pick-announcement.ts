@@ -32,7 +32,7 @@ export function formatAnnouncementTotal(
 
 /**
  * Plain-text iMessage body for a saved pick. No extra wrapping text.
- * Returns null if a totals matchup cannot be formed.
+ * Returns null only when the player name or line cannot be formed.
  */
 export function formatPickAnnouncement(
   input: PickAnnouncementInput,
@@ -43,20 +43,26 @@ export function formatPickAnnouncement(
   const loySuffix = input.loy ? ' LOY🔥' : '';
 
   if (input.market === 'totals') {
-    const away = input.awayTeam?.trim();
-    const home = input.homeTeam?.trim();
-    if (!away || !home) return null;
-    const side = input.team.trim().toLowerCase() === 'under' ? 'u' : 'o';
-    // Always the saved pick's total line — never a placeholder or live quote.
     const total = formatAnnouncementTotal(input.line);
     if (!total) return null;
-    return `🔒 ${displayName} locked in ${away}/${home} ${side}${total} 🏈${loySuffix}`;
+    const side = input.team.trim().toLowerCase() === 'under' ? 'u' : 'o';
+    const away = input.awayTeam?.trim();
+    const home = input.homeTeam?.trim();
+    const matchup =
+      away && home ? `${away}/${home} ${side}${total}` : `${side === 'u' ? 'Under' : 'Over'} ${total}`;
+    return `🔒 ${displayName} locked in ${matchup} 🏈${loySuffix}`;
   }
 
   const team = input.team.trim();
   const line = formatAnnouncementLine(input.line);
   if (!team || !line) return null;
   return `🔒 ${displayName} locked in ${team} ${line} 🏈${loySuffix}`;
+}
+
+/** Unique per player so Yahoo does not collapse every pick into one thread. */
+export function formatPickAnnouncementSubject(displayName: string): string {
+  const name = displayName.trim() || 'pick';
+  return `LOCKSONLY — ${name}`;
 }
 
 /**
