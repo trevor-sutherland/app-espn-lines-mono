@@ -8,6 +8,7 @@ export interface IPickSummary {
   week: number;
   sportKey?: string;
   status: string;
+  margin?: number | null;
   supercharged?: boolean;
   createdAt: Date;
 }

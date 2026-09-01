@@ -34,6 +34,7 @@ type LeanPick = {
   line: number | null;
   status: string;
   supercharged?: boolean;
+  margin?: number | null;
   lockedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
@@ -73,6 +74,11 @@ export type WeeklyLeader = {
 export type ActivityItem = {
   at: string;
   text: string;
+};
+
+export type BiggestWinner = {
+  margin: number;
+  winners: { userId: string; displayName: string }[];
 };
 
 export type PlayerHistoryPick = {
@@ -258,6 +264,7 @@ export class ScoreboardService {
       standings,
       matchups,
     );
+    const biggestWinner = this.buildBiggestWinner(leanPicks);
 
     return {
       season,
@@ -269,6 +276,7 @@ export class ScoreboardService {
       weeklyLeaders,
       activity,
       submittedCount,
+      biggestWinner,
     };
   }
 
@@ -354,6 +362,31 @@ export class ScoreboardService {
     if (ref && typeof ref === 'object' && ref._id) return ref._id.toString();
     if (typeof ref === 'string') return ref;
     return null;
+  }
+
+  private buildBiggestWinner(picks: LeanPick[]): BiggestWinner | null {
+    const wins = picks.filter(
+      (pick) =>
+        pick.status === 'won' &&
+        pick.margin != null &&
+        !Number.isNaN(Number(pick.margin)),
+    );
+    if (!wins.length) return null;
+    const margin = Math.max(...wins.map((pick) => Number(pick.margin)));
+    const tied = wins.filter((pick) => Number(pick.margin) === margin);
+    const seen = new Set<string>();
+    const winners: { userId: string; displayName: string }[] = [];
+    for (const pick of tied) {
+      const userId = this.userIdOf(pick);
+      if (!userId || seen.has(userId)) continue;
+      seen.add(userId);
+      winners.push({
+        userId,
+        displayName: this.displayNameOf(pick),
+      });
+    }
+    winners.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return winners.length ? { margin, winners } : null;
   }
 
   private displayNameOf(pick: LeanPick): string {

@@ -22,7 +22,51 @@
     } @else if (error) {
       <div class="locksonly-notice locksonly-notice--danger" role="alert">{{ error }}</div>
     } @else if (data) {
-      <section class="top-picks-board" aria-labelledby="top-picks-heading">
+      <div class="scoreboard-stack">
+      <section class="biggest-winner" aria-label="Current biggest winner">
+        <div class="biggest-winner-label">Current Biggest Winner</div>
+        @if (data.biggestWinner; as winner) {
+          <div class="biggest-winner-name">
+            @for (person of winner.winners; track person.userId; let last = $last) {
+              <a [routerLink]="['/players', person.userId]">{{ person.displayName }}</a>@if (!last) {<span>, </span>}
+            }
+          </div>
+          <div class="biggest-winner-margin">{{ biggestWinnerMargin() }}</div>
+          <div class="biggest-winner-note">Largest single-game cover this {{ sportLabel }} season</div>
+        } @else {
+          <div class="biggest-winner-empty">No graded wins yet this season</div>
+        }
+      </section>
+
+      <div class="scoreboard-mobile-actions">
+        <button
+          type="button"
+          class="btn scoreboard-mobile-btn"
+          [class.is-active]="mobilePanel === 'picks'"
+          [attr.aria-expanded]="mobilePanel === 'picks'"
+          aria-controls="top-picks-panel"
+          (click)="toggleMobilePanel('picks')"
+        >
+          This week's top picks
+        </button>
+        <button
+          type="button"
+          class="btn scoreboard-mobile-btn"
+          [class.is-active]="mobilePanel === 'activity'"
+          [attr.aria-expanded]="mobilePanel === 'activity'"
+          aria-controls="activity-panel"
+          (click)="toggleMobilePanel('activity')"
+        >
+          Recent activity
+        </button>
+      </div>
+
+      <section
+        class="top-picks-board"
+        id="top-picks-panel"
+        [class.is-open]="mobilePanel === 'picks'"
+        aria-labelledby="top-picks-heading"
+      >
         <h2 id="top-picks-heading" class="scoreboard-section-title">This week's top picks</h2>
         @if (!data.topPicks.length) {
           <p class="text-muted mb-0">No picks yet this week.</p>
@@ -54,7 +98,7 @@
             @if (podiumAt(2); as second) {
               <a class="podium-card podium-card--second" [routerLink]="['/players', second.userId]">
                 <span class="podium-place">2nd</span>
-                <span class="podium-name">{{ second.displayName }}</span>
+                <span class="podium-name">🥈 {{ second.displayName }}</span>
                 <span class="podium-pts">{{ second.points }} pts</span>
               </a>
             } @else {
@@ -66,14 +110,14 @@
             @if (podiumAt(1); as first) {
               <a class="podium-card podium-card--first" [routerLink]="['/players', first.userId]">
                 <span class="podium-place">1st</span>
-                <span class="podium-name">{{ first.displayName }}</span>
+                <span class="podium-name">🥇 {{ first.displayName }}</span>
                 <span class="podium-pts">{{ first.points }} pts</span>
               </a>
             }
             @if (podiumAt(3); as third) {
               <a class="podium-card podium-card--third" [routerLink]="['/players', third.userId]">
                 <span class="podium-place">3rd</span>
-                <span class="podium-name">{{ third.displayName }}</span>
+                <span class="podium-name">🥉 {{ third.displayName }}</span>
                 <span class="podium-pts">{{ third.points }} pts</span>
               </a>
             } @else {
@@ -122,6 +166,9 @@
                       </span>
                     </td>
                     <td>
+                      @if (rankMedal(row.rank); as medal) {
+                        <span class="rank-medal" [attr.aria-label]="'Rank ' + row.rank">{{ medal }}</span>
+                      }
                       <span class="player-name">{{ row.displayName }}</span>
                       @if (row.loneWolf) {
                         <span class="lone-wolf-badge">Lone wolf</span>
@@ -170,7 +217,12 @@
         }
       </section>
 
-      <section class="activity-feed" aria-labelledby="activity-heading">
+      <section
+        class="activity-feed"
+        id="activity-panel"
+        [class.is-open]="mobilePanel === 'activity'"
+        aria-labelledby="activity-heading"
+      >
         <h2 id="activity-heading" class="scoreboard-section-title">Recent activity</h2>
         @if (!data.activity.length) {
           <p class="text-muted mb-0">No recent activity yet.</p>
@@ -182,6 +234,7 @@
           </ul>
         }
       </section>
+      </div>
     }
   </div>
 </main>

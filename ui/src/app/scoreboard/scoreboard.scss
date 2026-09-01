@@ -15,8 +15,68 @@
 .season-podium,
 .scoreboard-standings,
 .weekly-leaders,
-.activity-feed {
+.activity-feed,
+.biggest-winner {
   margin-bottom: 1.75rem;
+}
+
+.biggest-winner {
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.1rem 1.25rem;
+  text-align: center;
+  color: var(--lo-white);
+  background:
+    linear-gradient(
+      115deg,
+      #041323 0%,
+      #06192f 55%,
+      #0b3a1a 100%
+    );
+  border: 1px solid rgba(41, 200, 23, 0.35);
+  border-radius: var(--lo-radius-lg);
+  box-shadow: var(--lo-shadow);
+}
+
+.biggest-winner-label {
+  margin-bottom: 0.35rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.biggest-winner-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.biggest-winner-name a {
+  color: var(--lo-white);
+  text-decoration: none;
+}
+
+.biggest-winner-name a:hover,
+.biggest-winner-name a:focus-visible {
+  color: var(--lo-green-light);
+  text-decoration: underline;
+}
+
+.biggest-winner-margin {
+  margin-top: 0.15rem;
+  color: var(--lo-green-light);
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.biggest-winner-note,
+.biggest-winner-empty {
+  margin-top: 0.3rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.85rem;
 }
 
 .top-picks-list {
@@ -180,6 +240,14 @@
   font-weight: 700;
 }
 
+.rank-medal {
+  margin-right: 0.3rem;
+}
+
+.scoreboard-mobile-actions {
+  display: none;
+}
+
 .lone-wolf-badge {
   display: inline-block;
   margin-left: 0.35rem;
@@ -248,6 +316,58 @@
 }
 
 @media (max-width: 767.98px) {
+  .scoreboard-stack {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .biggest-winner {
+    order: 1;
+  }
+
+  .scoreboard-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    order: 2;
+    margin-bottom: 1rem;
+  }
+
+  .scoreboard-mobile-btn {
+    width: 100%;
+    padding: 0.7rem 0.55rem;
+    color: var(--lo-navy);
+    background: var(--lo-white);
+    border: 1px solid var(--lo-border-dark);
+    border-radius: var(--lo-radius);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .scoreboard-mobile-btn.is-active,
+  .scoreboard-mobile-btn[aria-expanded='true'] {
+    color: var(--lo-navy);
+    background: #f4fff0;
+    border-color: var(--lo-green);
+  }
+
+  .top-picks-board,
+  .activity-feed {
+    display: none;
+    order: 3;
+  }
+
+  .top-picks-board.is-open,
+  .activity-feed.is-open {
+    display: block;
+  }
+
+  .scoreboard-standings {
+    order: 4;
+  }
+
   .pick-col {
     max-width: 7.5rem;
     overflow-wrap: anywhere;

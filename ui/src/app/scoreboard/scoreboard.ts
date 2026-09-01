@@ -9,6 +9,7 @@ import {
 import { DateService } from '../services/date.service';
 import { SportService } from '../services/sport.service';
 import { SPORT_OPTIONS } from '../enums/sports.enum';
+import { formatSignedLine } from '../helpers/pick-label';
 
 @Component({
   selector: 'app-scoreboard',
@@ -22,6 +23,7 @@ export class ScoreboardComponent {
   data: ScoreboardResponse | null = null;
   loading = true;
   error: string | null = null;
+  mobilePanel: 'picks' | 'activity' | null = null;
 
   private readonly api = inject(ScoreboardApiService);
   private readonly dateService = inject(DateService);
@@ -32,6 +34,7 @@ export class ScoreboardComponent {
     effect(() => {
       this.sportService.sportKey();
       this.dateService.recomputeSeasonAndWeek();
+      this.mobilePanel = null;
       this.load();
     });
   }
@@ -62,6 +65,23 @@ export class ScoreboardComponent {
   weeklyPointsLabel(points: number): string {
     if (points > 0) return `+${points}`;
     return String(points);
+  }
+
+  biggestWinnerMargin(): string {
+    return this.data?.biggestWinner
+      ? formatSignedLine(this.data.biggestWinner.margin)
+      : '';
+  }
+
+  toggleMobilePanel(panel: 'picks' | 'activity'): void {
+    this.mobilePanel = this.mobilePanel === panel ? null : panel;
+  }
+
+  rankMedal(rank: number): string {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '';
   }
 
   openPlayer(userId: string): void {

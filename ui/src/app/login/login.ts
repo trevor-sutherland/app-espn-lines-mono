@@ -24,6 +24,9 @@ export class Login implements OnInit, OnDestroy {
   private authSubscription: Subscription | null = null;
 
   ngOnInit(): void {
+    if (this.auth.consumeIdleLogoutNotice()) {
+      this.error = 'You were logged out after 10 minutes of inactivity.';
+    }
     if (this.auth.isLoggedIn()) {
       this.router.navigate(['/home']);
     }

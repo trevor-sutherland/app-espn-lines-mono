@@ -45,6 +45,7 @@
           <th scope="col">Display Name</th>
           <th scope="col">Pick</th>
           <th scope="col">Status</th>
+          <th scope="col">Margin</th>
           @if (auth.isAdmin()) {
             <th scope="col">Admin</th>
           }
@@ -63,6 +64,16 @@
               </div>
             </td>
             <td>{{ pick.status }}</td>
+            <td>
+              <span
+                class="picks-summary-margin"
+                [class.is-win]="pick.status === 'won'"
+                [class.is-loss]="pick.status === 'lost'"
+                [class.is-push]="pick.status === 'void'"
+              >
+                {{ marginLabel(pick) }}
+              </span>
+            </td>
             @if (auth.isAdmin()) {
               <td>
                 <button

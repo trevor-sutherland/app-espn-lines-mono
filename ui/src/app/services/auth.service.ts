@@ -21,6 +21,10 @@ export class AuthService {
   private router = inject(Router);
   private apiUrl = `${environment.apiBaseUrl}/auth`;
   private readonly tokenKey = 'jwtToken';
+  private readonly lastActiveKey = 'locksOnlyLastActive';
+  private readonly idleLogoutKey = 'locksOnlyIdleLogout';
+  /** Log out after this much time with no clicks, keys, or scrolls. */
+  static readonly IDLE_MS = 10 * 60 * 1000;
 
   /** Reactive session snapshot for the shell / guards. */
   readonly session = signal<JwtUser | null>(this.readSession());
@@ -35,6 +39,7 @@ export class AuthService {
           const token = res?.user?.jwtToken;
           if (token) {
             localStorage.setItem(this.tokenKey, token);
+            this.touchActivity();
             this.session.set(this.decodeToken(token));
           }
         }),
@@ -101,6 +106,7 @@ export class AuthService {
           const jwt = res?.user?.jwtToken;
           if (jwt) {
             localStorage.setItem(this.tokenKey, jwt);
+            this.touchActivity();
             this.session.set(this.decodeToken(jwt));
           }
         }),
@@ -116,10 +122,44 @@ export class AuthService {
     return new HttpHeaders(token ? { Authorization: `Bearer ${token}` } : {});
   }
 
-  logout(): void {
+  logout(options?: { reason?: 'idle' | 'manual' }): void {
     localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.lastActiveKey);
+    if (options?.reason === 'idle') {
+      sessionStorage.setItem(this.idleLogoutKey, '1');
+    }
     this.session.set(null);
     this.router.navigate(['/login']);
+  }
+
+  consumeIdleLogoutNotice(): boolean {
+    const shown = sessionStorage.getItem(this.idleLogoutKey) === '1';
+    if (shown) sessionStorage.removeItem(this.idleLogoutKey);
+    return shown;
+  }
+
+  /** Record that the user is still using the app. */
+  touchActivity(): void {
+    if (!this.getToken()) return;
+    localStorage.setItem(this.lastActiveKey, String(Date.now()));
+  }
+
+  /**
+   * End the session if the last activity is older than 10 minutes.
+   * Returns true when this call logged the user out.
+   */
+  expireIfIdle(): boolean {
+    if (!this.getToken()) return false;
+    const last = Number(localStorage.getItem(this.lastActiveKey));
+    if (!Number.isFinite(last)) {
+      this.touchActivity();
+      return false;
+    }
+    if (Date.now() - last > AuthService.IDLE_MS) {
+      this.logout({ reason: 'idle' });
+      return true;
+    }
+    return false;
   }
 
   /** Apply sports from an admin save without forcing a re-login. */
@@ -131,7 +171,15 @@ export class AuthService {
 
   private readSession(): JwtUser | null {
     const token = localStorage.getItem(this.tokenKey);
-    return token ? this.decodeToken(token) : null;
+    if (!token) return null;
+    const last = Number(localStorage.getItem(this.lastActiveKey));
+    if (Number.isFinite(last) && Date.now() - last > AuthService.IDLE_MS) {
+      localStorage.removeItem(this.tokenKey);
+      localStorage.removeItem(this.lastActiveKey);
+      sessionStorage.setItem(this.idleLogoutKey, '1');
+      return null;
+    }
+    return this.decodeToken(token);
   }
 
   private decodeToken(token: string): JwtUser | null {

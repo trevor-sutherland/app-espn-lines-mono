@@ -102,7 +102,7 @@ export class PicksService implements OnModuleInit {
     return this.PickModel.find()
       .populate('userId', 'displayName')
       .select(
-        'userId team market line season week sportKey status supercharged createdAt',
+        'userId team market line season week sportKey status margin supercharged createdAt',
       )
       .lean();
   }

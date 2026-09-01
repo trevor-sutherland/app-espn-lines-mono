@@ -5,7 +5,7 @@ import { DateService } from '../services/date.service';
 import { PicksSummaryService } from './picks-summary.service';
 import { SportService } from '../services/sport.service';
 import { AuthService } from '../services/auth.service';
-import { formatPickLabel } from '../helpers/pick-label';
+import { formatPickLabel, formatSignedLine } from '../helpers/pick-label';
 import { SPORT_OPTIONS } from '../enums/sports.enum';
 
 @Component({
@@ -79,6 +79,13 @@ export class PicksSummary implements OnInit {
 
   playerName(pick: IPickSummary): string {
     return pick.userId?.displayName || 'Unknown';
+  }
+
+  marginLabel(pick: IPickSummary): string {
+    if (pick.status === 'pending' || pick.margin == null || Number.isNaN(Number(pick.margin))) {
+      return '—';
+    }
+    return formatSignedLine(pick.margin);
   }
 
   askUndo(pick: IPickSummary): void {

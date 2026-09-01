@@ -14,3 +14,19 @@
   flex: 0 0 auto;
   margin-left: 0;
 }
+
+.picks-summary-margin {
+  font-weight: 700;
+}
+
+.picks-summary-margin.is-win {
+  color: var(--lo-green-dark);
+}
+
+.picks-summary-margin.is-loss {
+  color: #b42318;
+}
+
+.picks-summary-margin.is-push {
+  color: var(--lo-text-muted);
+}

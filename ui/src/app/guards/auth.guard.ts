@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service';
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  if (auth.expireIfIdle()) return router.createUrlTree(['/login']);
   if (auth.isLoggedIn()) return true;
   return router.createUrlTree(['/login']);
 };
@@ -12,6 +13,7 @@ export const authGuard: CanActivateFn = () => {
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  if (auth.expireIfIdle()) return router.createUrlTree(['/login']);
   if (auth.isLoggedIn() && auth.isAdmin()) return true;
   if (auth.isLoggedIn()) return router.createUrlTree(['/home']);
   return router.createUrlTree(['/login']);

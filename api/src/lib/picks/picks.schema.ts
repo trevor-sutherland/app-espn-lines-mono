@@ -23,6 +23,13 @@ export class Pick {
   @Prop({ default: 'pending', enum: ['pending', 'won', 'lost', 'void'] })
   status: string;
 
+  /**
+   * Cover margin vs the saved line after the game is graded.
+   * Spreads: (picked team score − opponent) + line. Totals: over/under vs the total.
+   */
+  @Prop({ type: Number, default: null })
+  margin: number | null;
+
   /** LOY: win = +2, loss = −1, push = −1. One per user per season per sport. */
   @Prop({ default: false })
   supercharged: boolean;

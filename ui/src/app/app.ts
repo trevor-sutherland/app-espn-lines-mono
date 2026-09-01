@@ -1,6 +1,7 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NavComponent } from './nav/nav';
+import { IdleTimeoutService } from './services/idle-timeout.service';
 
 @Component({
   selector: 'app-root',
@@ -12,4 +13,8 @@ import { NavComponent } from './nav/nav';
 })
 export class App {
   protected readonly title = signal('LocksOnly');
+
+  constructor() {
+    inject(IdleTimeoutService);
+  }
 }

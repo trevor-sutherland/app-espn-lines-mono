@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios, { AxiosInstance } from 'axios';
@@ -47,7 +47,7 @@ const SPORT_KEYS = [
 ] as const;
 
 @Injectable()
-export class ResultsService {
+export class ResultsService implements OnModuleInit {
   private readonly log = new Logger(ResultsService.name);
   private readonly http: AxiosInstance;
   private readonly apiKey: string;
@@ -67,6 +67,17 @@ export class ResultsService {
       timeout: 15_000,
       headers: { 'User-Agent': 'mongo-espn-line-app/1.0 (NestJS)' },
     });
+  }
+
+  async onModuleInit() {
+    try {
+      await this.backfillMargins();
+    } catch (err) {
+      this.log.error(
+        'Failed to backfill pick margins',
+        err instanceof Error ? err.stack ?? err.message : String(err),
+      );
+    }
   }
 
   async fetchAndSaveScores(sportKey: string): Promise<{ upserted: number }> {
@@ -146,7 +157,7 @@ export class ResultsService {
     awayTeam: string,
     homeScore: number,
     awayScore: number,
-  ): 'won' | 'lost' | 'void' | null {
+  ): { status: 'won' | 'lost' | 'void'; margin: number } | null {
     const isHome = pickedTeam === homeTeam;
     const isAway = pickedTeam === awayTeam;
     if (!isHome && !isAway) {
@@ -158,9 +169,9 @@ export class ResultsService {
     const spread = line ?? 0;
     const margin = pickedScore - opponentScore + spread;
 
-    if (margin > 0) return 'won';
-    if (margin < 0) return 'lost';
-    return 'void';
+    if (margin > 0) return { status: 'won', margin };
+    if (margin < 0) return { status: 'lost', margin };
+    return { status: 'void', margin: 0 };
   }
 
   gradeTotals(
@@ -168,7 +179,7 @@ export class ResultsService {
     line: number | null,
     homeScore: number,
     awayScore: number,
-  ): 'won' | 'lost' | 'void' | null {
+  ): { status: 'won' | 'lost' | 'void'; margin: number } | null {
     const side = selection.trim().toLowerCase();
     if (side !== 'over' && side !== 'under') {
       return null;
@@ -178,10 +189,12 @@ export class ResultsService {
     }
     const finalTotal = homeScore + awayScore;
     const totalLine = Number(line);
-    if (finalTotal === totalLine) return 'void';
-    const overWins = finalTotal > totalLine;
-    if (side === 'over') return overWins ? 'won' : 'lost';
-    return overWins ? 'lost' : 'won';
+    const diff = finalTotal - totalLine;
+    if (diff === 0) return { status: 'void', margin: 0 };
+    if (side === 'over') {
+      return { status: diff > 0 ? 'won' : 'lost', margin: diff };
+    }
+    return { status: diff < 0 ? 'won' : 'lost', margin: -diff };
   }
 
   async gradePendingPicks(): Promise<{ graded: number; skipped: number }> {
@@ -206,27 +219,19 @@ export class ResultsService {
         continue;
       }
 
-      const market = this.resolvePickMarket(pick.market, pick.team);
-      const status =
-        market === 'totals'
-          ? this.gradeTotals(pick.team, pick.line, game.homeScore, game.awayScore)
-          : this.gradeAts(
-              pick.team,
-              pick.line,
-              game.homeTeam,
-              game.awayTeam,
-              game.homeScore,
-              game.awayScore,
-            );
-      if (!status) {
+      const outcome = this.gradeStoredPick(pick, game);
+      if (!outcome) {
         this.log.warn(
-          `Could not grade pick "${pick.team}" (${market}) for game ${pick.eventId}`,
+          `Could not grade pick "${pick.team}" (${pick.market ?? 'spreads'}) for game ${pick.eventId}`,
         );
         skipped += 1;
         continue;
       }
 
-      await this.pickModel.updateOne({ _id: pick._id }, { $set: { status } });
+      await this.pickModel.updateOne(
+        { _id: pick._id },
+        { $set: { status: outcome.status, margin: outcome.margin } },
+      );
       graded += 1;
     }
 
@@ -308,5 +313,72 @@ export class ResultsService {
     team: string,
   ): 'spreads' | 'totals' {
     return resolveMarket(market, team);
+  }
+
+  private gradeStoredPick(
+    pick: {
+      market?: 'spreads' | 'totals';
+      team: string;
+      line: number | null;
+    },
+    game: {
+      homeTeam: string;
+      awayTeam: string;
+      homeScore: number;
+      awayScore: number;
+    },
+  ): { status: 'won' | 'lost' | 'void'; margin: number } | null {
+    const market = this.resolvePickMarket(pick.market, pick.team);
+    return market === 'totals'
+      ? this.gradeTotals(pick.team, pick.line, game.homeScore, game.awayScore)
+      : this.gradeAts(
+          pick.team,
+          pick.line,
+          game.homeTeam,
+          game.awayTeam,
+          game.homeScore,
+          game.awayScore,
+        );
+  }
+
+  private async backfillMargins(): Promise<void> {
+    const missing = await this.pickModel
+      .find({
+        status: { $in: ['won', 'lost', 'void'] },
+        $or: [{ margin: { $exists: false } }, { margin: null }],
+      })
+      .select('_id eventId team market line')
+      .lean()
+      .exec();
+    if (!missing.length) return;
+
+    const eventIds = [...new Set(missing.map((pick) => pick.eventId))];
+    const games = await this.gameResultModel
+      .find({ eventId: { $in: eventIds }, completed: true })
+      .lean()
+      .exec();
+    const byEvent = new Map(games.map((game) => [game.eventId, game]));
+
+    const ops: {
+      updateOne: {
+        filter: { _id: unknown };
+        update: { $set: { margin: number } };
+      };
+    }[] = [];
+    for (const pick of missing) {
+      const game = byEvent.get(pick.eventId);
+      if (!game) continue;
+      const outcome = this.gradeStoredPick(pick, game);
+      if (!outcome) continue;
+      ops.push({
+        updateOne: {
+          filter: { _id: pick._id },
+          update: { $set: { margin: outcome.margin } },
+        },
+      });
+    }
+    if (!ops.length) return;
+    await this.pickModel.bulkWrite(ops, { ordered: false });
+    this.log.log(`Backfilled margin on ${ops.length} graded picks`);
   }
 }

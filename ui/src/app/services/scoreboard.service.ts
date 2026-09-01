@@ -40,6 +40,11 @@ export type ActivityItem = {
   text: string;
 };
 
+export type BiggestWinner = {
+  margin: number;
+  winners: { userId: string; displayName: string }[];
+};
+
 export type ScoreboardResponse = {
   season: number;
   week: number;
@@ -49,6 +54,7 @@ export type ScoreboardResponse = {
   weeklyLeaders: WeeklyLeader[];
   activity: ActivityItem[];
   submittedCount: number;
+  biggestWinner: BiggestWinner | null;
 };
 
 export type PlayerHistoryPick = {
