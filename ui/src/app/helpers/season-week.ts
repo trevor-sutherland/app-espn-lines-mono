@@ -1,4 +1,11 @@
-/** Keep in sync with api/src/lib/utils/seasson-week.util.ts */
+/**
+ * Keep in sync with api/src/lib/utils/seasson-week.util.ts
+ *
+ * ESPN-style football weeks in America/Chicago.
+ * Week 1 runs from the Saturday 16 days before Labor Day through Labor Day
+ * (2026: August 22–September 7). Week 2 is the short Tuesday–Sunday after
+ * Labor Day. Week 3+ is Monday–Sunday.
+ */
 
 const TZ = 'America/Chicago';
 const MONTHS = [
@@ -93,12 +100,6 @@ function addCalendarDays(day: CalendarDay, days: number): CalendarDay {
   };
 }
 
-function mondayOnOrBefore(day: CalendarDay): CalendarDay {
-  const instant = chicagoWallTimeToUtc(day.year, day.month, day.day);
-  const offset = MONDAY_OFFSET[chicagoParts(instant).weekday] ?? 0;
-  return addCalendarDays(day, -offset);
-}
-
 export function laborDay(seasonYear: number): CalendarDay {
   const sept1 = { year: seasonYear, month: 9, day: 1 };
   const offset =
@@ -114,8 +115,47 @@ export function getSeasonYear(now: Date = new Date()): number {
   return month >= 7 ? year : year - 1;
 }
 
+function dayUtc(day: CalendarDay): number {
+  return Date.UTC(day.year, day.month - 1, day.day);
+}
+
+/** Inclusive calendar span for ESPN-style week N. */
+function weekSpan(
+  seasonYear: number,
+  week: number,
+): {
+  startDay: CalendarDay;
+  endDay: CalendarDay;
+  picksOpenDay: CalendarDay;
+} {
+  const ld = laborDay(seasonYear);
+  if (week <= 1) {
+    const mainMonday = addCalendarDays(ld, -7);
+    return {
+      startDay: addCalendarDays(ld, -16),
+      endDay: ld,
+      picksOpenDay: addCalendarDays(mainMonday, 1),
+    };
+  }
+  if (week === 2) {
+    const startDay = addCalendarDays(ld, 1);
+    return {
+      startDay,
+      endDay: addCalendarDays(ld, 6),
+      picksOpenDay: startDay,
+    };
+  }
+  const monday = addCalendarDays(ld, 7 * (week - 2));
+  return {
+    startDay: monday,
+    endDay: addCalendarDays(monday, 6),
+    picksOpenDay: addCalendarDays(monday, 1),
+  };
+}
+
+/** Start calendar day of ESPN-style week N. */
 export function weekMonday(seasonYear: number, week: number): CalendarDay {
-  return addCalendarDays(laborDay(seasonYear), (week - 2) * 7);
+  return weekSpan(seasonYear, week).startDay;
 }
 
 export function formatWeekRangeLabel(start: CalendarDay, end: CalendarDay): string {
@@ -136,16 +176,26 @@ export function getWeekBounds(
   sunday: CalendarDay;
   rangeLabel: string;
 } {
-  const monday = weekMonday(seasonYear, week);
-  const sunday = addCalendarDays(monday, 6);
-  const tuesday = addCalendarDays(monday, 1);
+  const { startDay, endDay, picksOpenDay } = weekSpan(seasonYear, week);
   return {
-    monday,
-    sunday,
-    start: chicagoWallTimeToUtc(monday.year, monday.month, monday.day),
-    end: chicagoWallTimeToUtc(sunday.year, sunday.month, sunday.day, 23, 59, 59, 999),
-    picksOpenAt: chicagoWallTimeToUtc(tuesday.year, tuesday.month, tuesday.day),
-    rangeLabel: formatWeekRangeLabel(monday, sunday),
+    monday: startDay,
+    sunday: endDay,
+    start: chicagoWallTimeToUtc(startDay.year, startDay.month, startDay.day),
+    end: chicagoWallTimeToUtc(
+      endDay.year,
+      endDay.month,
+      endDay.day,
+      23,
+      59,
+      59,
+      999,
+    ),
+    picksOpenAt: chicagoWallTimeToUtc(
+      picksOpenDay.year,
+      picksOpenDay.month,
+      picksOpenDay.day,
+    ),
+    rangeLabel: formatWeekRangeLabel(startDay, endDay),
   };
 }
 
@@ -155,17 +205,17 @@ export function computeCurrentWeek(
   maxWeeks = 18,
 ): number {
   const today = chicagoParts(now);
-  const thisMonday = mondayOnOrBefore({
+  const todayUtc = dayUtc({
     year: today.year,
     month: today.month,
     day: today.day,
   });
-  const week1Monday = weekMonday(seasonYear, 1);
-  const thisMonUtc = Date.UTC(thisMonday.year, thisMonday.month - 1, thisMonday.day);
-  const week1Utc = Date.UTC(week1Monday.year, week1Monday.month - 1, week1Monday.day);
-  const weeksFromOne =
-    Math.floor((thisMonUtc - week1Utc) / (7 * 24 * 60 * 60 * 1000)) + 1;
-  return Math.max(1, Math.min(maxWeeks, weeksFromOne));
+  for (let week = 1; week <= maxWeeks; week++) {
+    if (todayUtc <= dayUtc(weekSpan(seasonYear, week).endDay)) {
+      return week;
+    }
+  }
+  return maxWeeks;
 }
 
 export function getCurrentSeasonAndWeek(
