@@ -13,6 +13,7 @@ import {
   Query,
   Delete,
   Param,
+  Logger,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -39,6 +40,8 @@ declare module 'express-serve-static-core' {
 
 @Controller('picks')
 export class PicksController {
+  private readonly log = new Logger(PicksController.name);
+
   constructor(
     private readonly picksService: PicksService,
     private readonly oddsService: OddsService,
@@ -158,6 +161,7 @@ export class PicksController {
     };
 
     const saved = await this.picksService.createPick(pickToSave);
+    this.log.log(`Pick saved ${String(saved._id)}; queueing notification`);
     void this.pickNotifications.notifySavedPick(saved);
     return saved;
   }

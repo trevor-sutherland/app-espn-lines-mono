@@ -27,6 +27,9 @@ export class PickNotificationService {
    */
   async notifySavedPick(pick: PickDocument): Promise<void> {
     try {
+      this.log.log(
+        `Sending pick notification for pick ${String(pick._id)} to ${PICK_NOTIFY_TO}`,
+      );
       const user = await this.userModel
         .findById(pick.userId)
         .select('displayName')
@@ -83,6 +86,8 @@ export class PickNotificationService {
         to: PICK_NOTIFY_TO,
         subject: PICK_NOTIFY_SUBJECT,
         text: body,
+        template: 'pick-announcement',
+        context: { body },
       });
       this.log.log(`Pick notification sent for pick ${String(pick._id)}`);
     } catch (err) {
