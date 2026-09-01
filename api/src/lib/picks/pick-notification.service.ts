@@ -7,7 +7,7 @@ import { OddsLatest, OddsLatestDocument } from '../odds/odds.schema';
 import { PickDocument } from './picks.schema';
 import { formatPickAnnouncement } from './pick-announcement';
 
-const PICK_NOTIFY_TO = 'noreply.locksonly@gmail.com';
+const PICK_NOTIFY_TO = 'locksonlygame@yahoo.com';
 const PICK_NOTIFY_SUBJECT = 'LOCKSONLY';
 
 @Injectable()
