@@ -35,6 +35,9 @@ export class PickEmailOutbox {
   lastError?: string;
 
   @Prop()
+  smtpResponse?: string;
+
+  @Prop()
   sentAt?: Date;
 
   @Prop()

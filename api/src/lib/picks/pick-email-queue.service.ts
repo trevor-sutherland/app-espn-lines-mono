@@ -140,19 +140,28 @@ export class PickEmailQueueService implements OnModuleInit {
         to: job.to,
         subject: job.subject,
         text: job.text,
-        template: 'pick-announcement',
-        context: { body: job.text },
       });
+      const accepted = Array.isArray(info?.accepted)
+        ? info.accepted.map(String).join(',')
+        : '';
+      const rejected = Array.isArray(info?.rejected)
+        ? info.rejected.map(String).join(',')
+        : '';
+      job.smtpResponse =
+        `accepted=${accepted}; rejected=${rejected}; response=${String(info?.response ?? '')}`.slice(
+          0,
+          1000,
+        );
+      if (rejected) {
+        throw new Error(`SMTP rejected recipient: ${rejected}`);
+      }
       job.status = 'sent';
       job.sentAt = new Date();
       job.lastError = undefined;
       job.claimedAt = undefined;
       await job.save();
-      const accepted = Array.isArray(info?.accepted)
-        ? info.accepted.join(',')
-        : '';
       this.log.log(
-        `Pick notification sent for pick ${pickId} messageId=${String(info?.messageId ?? '')} accepted=${accepted}`,
+        `Pick notification sent for pick ${pickId} messageId=${String(info?.messageId ?? '')} ${job.smtpResponse}`,
       );
     } catch (err) {
       const message =
