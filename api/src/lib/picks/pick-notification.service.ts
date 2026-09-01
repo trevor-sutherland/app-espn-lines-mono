@@ -88,6 +88,9 @@ export class PickNotificationService {
         text: body,
         template: 'pick-announcement',
         context: { body },
+        headers: {
+          'Message-ID': `<pick-${String(pick._id)}@locksonly>`,
+        },
       });
       this.log.log(`Pick notification sent for pick ${String(pick._id)}`);
     } catch (err) {

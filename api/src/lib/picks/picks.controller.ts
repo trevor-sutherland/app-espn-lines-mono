@@ -161,8 +161,10 @@ export class PicksController {
     };
 
     const saved = await this.picksService.createPick(pickToSave);
-    this.log.log(`Pick saved ${String(saved._id)}; queueing notification`);
-    void this.pickNotifications.notifySavedPick(saved);
+    this.log.log(`Pick saved ${String(saved._id)}; sending notification`);
+    // Await so Cloud Run keeps CPU until SMTP finishes. A void send after
+    // the response is frozen/killed and some pick emails never leave.
+    await this.pickNotifications.notifySavedPick(saved);
     return saved;
   }
 
