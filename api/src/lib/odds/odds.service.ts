@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { OddsLatest, OddsLatestDocument } from './odds.schema';
 import axios, { AxiosInstance } from 'axios';
 import { NormalizedOddsRow, OddsApiUsage, OddsApiEvent } from './models/odds.model';
+import { isSportKey, type SportKey } from '../utils/sports';
 
 @Injectable()
 export class OddsService {
@@ -314,6 +315,15 @@ export class OddsService {
     return this.oddsModel
       .find(filter)
       .lean();
+  }
+
+  async getSportForEvent(eventId: string): Promise<SportKey | null> {
+    const row = await this.oddsModel
+      .findOne({ eventId })
+      .select('sport')
+      .lean()
+      .exec();
+    return row?.sport && isSportKey(row.sport) ? row.sport : null;
   }
 
   async refreshAllSports(): Promise<{ updated: number; inserted: number }> {

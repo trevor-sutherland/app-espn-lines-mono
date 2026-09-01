@@ -11,6 +11,7 @@ import * as argon2 from 'argon2';
 import { User, UserDocument, UserRole } from './users.schema';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
+import { parseSports, resolveUserSports, type SportKey } from '../utils/sports';
 
 export type PublicUser = {
   id: string;
@@ -19,6 +20,7 @@ export type PublicUser = {
   role: UserRole;
   approved: boolean;
   active: boolean;
+  sports: SportKey[];
   createdAt?: Date;
 };
 
@@ -44,8 +46,17 @@ export class UsersService implements OnModuleInit {
       role: user.role ?? 'user',
       approved: !!user.approved,
       active: user.active !== false,
+      sports: resolveUserSports(user.sports),
       createdAt: (user as UserDocument & { createdAt?: Date }).createdAt,
     };
+  }
+
+  private requireSports(sports?: string[] | null): SportKey[] {
+    const parsed = parseSports(sports);
+    if (!parsed.length) {
+      throw new BadRequestException('Select at least one sport');
+    }
+    return parsed;
   }
 
   async listUsers(): Promise<PublicUser[]> {
@@ -67,6 +78,9 @@ export class UsersService implements OnModuleInit {
       throw new ConflictException('Email already in use');
     }
     const role: UserRole = dto.role === 'admin' ? 'admin' : 'user';
+    const sports = this.requireSports(
+      dto.sports ?? [...resolveUserSports(undefined)],
+    );
     const user = await this.userModel.create({
       email,
       passwordHash: await argon2.hash(dto.password),
@@ -74,6 +88,7 @@ export class UsersService implements OnModuleInit {
       role,
       approved: true,
       active: true,
+      sports,
     });
     return this.toPublic(user);
   }
@@ -105,6 +120,7 @@ export class UsersService implements OnModuleInit {
     }
 
     user.displayName = displayName;
+    user.sports = this.requireSports(dto.sports);
     if (dto.password) {
       user.passwordHash = await argon2.hash(dto.password);
     }
@@ -149,5 +165,11 @@ export class UsersService implements OnModuleInit {
     user.active = active;
     await user.save();
     return this.toPublic(user);
+  }
+
+  async getAllowedSports(userId: string): Promise<SportKey[]> {
+    const user = await this.userModel.findById(userId).select('sports').exec();
+    if (!user) throw new NotFoundException('User not found');
+    return resolveUserSports(user.sports);
   }
 }

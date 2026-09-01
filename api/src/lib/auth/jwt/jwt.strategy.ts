@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../../users/users.schema';
+import { resolveUserSports } from '../../utils/sports';
 
 export interface JwtPayload {
   sub: string; // user id
@@ -43,6 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: String(user._id),
       email: user.email,
       role: user.role ?? 'user',
+      sports: resolveUserSports(user.sports),
     };
   }
 }

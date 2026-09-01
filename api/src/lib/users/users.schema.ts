@@ -25,6 +25,10 @@ export class User {
   @Prop({ required: true, default: true })
   active: boolean;
 
+  /** Odds API sport keys this user can see. Missing/empty = all sports. */
+  @Prop({ type: [String], default: undefined })
+  sports?: string[];
+
   @Prop()
   resetToken?: string;
 

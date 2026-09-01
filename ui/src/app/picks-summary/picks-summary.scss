@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.picks-summary-pick {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.picks-summary-pick .locksonly-loy-badge {
+  flex: 0 0 auto;
+  margin-left: 0;
+}

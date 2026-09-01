@@ -5,6 +5,12 @@ import axios, { AxiosInstance } from 'axios';
 import { GameResult, GameResultDocument } from './game-result.schema';
 import { Pick, PickDocument } from '../picks/picks.schema';
 import { getCurrentSeasonAndWeek } from '../utils/seasson-week.util';
+import {
+  applyGradedPick,
+  compareStandings,
+  emptyStanding,
+  resolvePickMarket as resolveMarket,
+} from './standings.util';
 
 type OddsScoreRow = {
   name: string;
@@ -28,7 +34,7 @@ export type StandingRow = {
   wins: number;
   losses: number;
   voids: number;
-  /** Net from supercharged picks only (+1 win, −1 loss). Total points = wins + this. */
+  /** Net from LOY picks only (+1 win bonus, −1 loss, −1 push). Total points = wins + this. */
   superchargePoints: number;
   points: number;
 };
@@ -249,11 +255,13 @@ export class ResultsService {
     return { sports, graded, skipped };
   }
 
-  async getStandings(season?: number): Promise<StandingRow[]> {
+  async getStandings(season?: number, sportKey?: string): Promise<StandingRow[]> {
     const resolvedSeason = season ?? getCurrentSeasonAndWeek().season;
+    const filter: Record<string, unknown> = { season: resolvedSeason };
+    if (sportKey) filter.sportKey = sportKey;
 
     const rows = await this.pickModel
-      .find({ season: resolvedSeason })
+      .find(filter)
       .populate('userId', 'displayName')
       .select('userId status supercharged')
       .lean();
@@ -277,33 +285,8 @@ export class ResultsService {
       } | null;
       if (!user?._id) continue;
       const userId = user._id.toString();
-      const entry = byUser.get(userId) ?? {
-        displayName: user.displayName || 'Unknown',
-        wins: 0,
-        losses: 0,
-        voids: 0,
-        superchargePoints: 0,
-        points: 0,
-      };
-
-      const supercharged = !!pick.supercharged;
-      if (pick.status === 'won') {
-        entry.wins += 1;
-        entry.points += 1;
-        if (supercharged) {
-          entry.superchargePoints += 1;
-          entry.points += 1; // SC win is +2 total (win + bonus)
-        }
-      } else if (pick.status === 'lost') {
-        entry.losses += 1;
-        if (supercharged) {
-          entry.superchargePoints -= 1;
-          entry.points -= 1;
-        }
-      } else if (pick.status === 'void') {
-        entry.voids += 1;
-      }
-
+      const entry = byUser.get(userId) ?? emptyStanding(user.displayName || 'Unknown');
+      applyGradedPick(entry, pick.status, !!pick.supercharged);
       byUser.set(userId, entry);
     }
 
@@ -317,20 +300,13 @@ export class ResultsService {
         superchargePoints: e.superchargePoints,
         points: e.points,
       }))
-      .sort((a, b) => b.points - a.points || a.displayName.localeCompare(b.displayName));
+      .sort(compareStandings);
   }
 
   private resolvePickMarket(
     market: string | undefined,
     team: string,
   ): 'spreads' | 'totals' {
-    if (market === 'totals' || market === 'spreads') {
-      return market;
-    }
-    const name = (team || '').trim().toLowerCase();
-    if (name === 'over' || name === 'under') {
-      return 'totals';
-    }
-    return 'spreads';
+    return resolveMarket(market, team);
   }
 }

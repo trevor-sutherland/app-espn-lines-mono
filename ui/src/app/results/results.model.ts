@@ -4,7 +4,7 @@ export interface IStandingRow {
   wins: number;
   losses: number;
   voids: number;
-  /** Net from supercharged picks only (+1 win, −1 loss). */
+  /** Net from LOY picks only (+1 win bonus, −1 loss, −1 push). */
   superchargePoints: number;
   points: number;
 }

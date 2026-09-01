@@ -31,6 +31,10 @@ export class CreatePickDto {
   @Min(1900)
   season!: number;
 
+  @IsOptional()
+  @IsString()
+  sportKey?: string;
+
   lockedAt?: Date;
 
   /** When true, save the current DraftKings line even if it differs from `line`. */
@@ -38,4 +42,10 @@ export class CreatePickDto {
   @IsBoolean()
   @Type(() => Boolean)
   acceptChangedLine?: boolean;
+
+  /** Client request to apply this season's one LOY. Server re-checks eligibility. */
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  loy?: boolean;
 }

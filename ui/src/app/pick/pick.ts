@@ -2,6 +2,7 @@ import { IEventOdds } from './../models/event-odds.model';
 import { getTeamAbbr } from './../helpers/team-abbreviation';
 import { Component, OnInit, OnDestroy, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { normalizeOdds } from './pick.interface';
 import { IEvent } from '../models/event.model';
@@ -21,6 +22,13 @@ import {
   type PickMarket,
 } from '../helpers/pick-label';
 import { IBookmakers } from '../models/bookmaker.model';
+import {
+  eventHasConference,
+  getConferenceLabel,
+  getConferencesForSport,
+  getTeamConferenceId,
+  type ConferenceOption,
+} from '../helpers/team-conference';
 
 type SelectedPick = {
   eventId: string;
@@ -29,6 +37,7 @@ type SelectedPick = {
   line: number | null;
   week: number;
   season: number;
+  loy?: boolean;
 };
 
 type LineChangePrompt = {
@@ -45,15 +54,17 @@ type MyPickResponse = {
     team: string;
     market?: PickMarket;
     line: number | null;
+    loy?: boolean;
     season: number;
     week: number;
   } | null;
+  loyAvailable?: boolean;
 };
 
 @Component({
   selector: 'app-pick',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './pick.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './pick.scss'
@@ -63,7 +74,7 @@ export class Pick implements OnInit, OnDestroy {
   loading = true;
   error: string | null = null;
   selected: SelectedPick | null = null;
-  /** True when this user already submitted a pick for the selected week. */
+  /** True when this user already submitted a pick for this sport this week. */
   weekLocked = false;
   submitting = false;
   selectedWeek = 1;
@@ -72,6 +83,10 @@ export class Pick implements OnInit, OnDestroy {
   picksOpen = false;
   picksOpenLabel = '';
   lineChange: LineChangePrompt | null = null;
+  confirmOpen = false;
+  loyAvailable = false;
+  useLoy = false;
+  conferenceFilter = '';
   sportsKeySubject$ = new ReplaySubject<string>(1);
   sportsKey: string;
   eventOddsSubscription: Subscription | null = null;
@@ -94,6 +109,11 @@ export class Pick implements OnInit, OnDestroy {
         this.sportKey = newKey as SportsEnum;
         this.dateService.recomputeSeasonAndWeek();
         this.applyCurrentWeek();
+        this.conferenceFilter = '';
+        this.weekLocked = false;
+        this.selected = null;
+        this.useLoy = false;
+        this.confirmOpen = false;
         this.sportsKeySubject$.next(newKey);
       }
     });
@@ -106,7 +126,7 @@ export class Pick implements OnInit, OnDestroy {
     this.sportsKeySubject$.next(this.sportService.sportKey());
     this.setData();
     this.oddsRefreshTimer = setInterval(() => {
-      if (!this.weekLocked && !this.submitting && !this.lineChange) {
+      if (!this.weekLocked && !this.submitting && !this.lineChange && !this.confirmOpen) {
         this.setData();
       }
     }, 60 * 60 * 1000);
@@ -149,7 +169,11 @@ export class Pick implements OnInit, OnDestroy {
           myPick: this.http
             .get<MyPickResponse>(`${environment.apiBaseUrl}/picks/mine`, {
               headers: this.auth.authHeaders(),
-              params: { season: String(season), week: String(week) },
+              params: {
+                season: String(season),
+                week: String(week),
+                sportKey: sportsKey,
+              },
             })
             .pipe(catchError(() => of({ pick: null } as MyPickResponse))),
         });
@@ -157,6 +181,7 @@ export class Pick implements OnInit, OnDestroy {
     ).subscribe({
       next: ({ events, odds, myPick }) => {
         this.eventOdds = this.setThisWeekEvents(normalizeOdds(odds, events));
+        this.loyAvailable = myPick.loyAvailable === true;
         this.applyExistingPick(myPick.pick);
         this.loading = false;
       },
@@ -174,9 +199,11 @@ export class Pick implements OnInit, OnDestroy {
     if (!pick) {
       this.weekLocked = false;
       this.selected = null;
+      this.useLoy = false;
       return;
     }
     this.weekLocked = true;
+    this.useLoy = !!pick.loy;
     this.selected = {
       eventId: pick.eventId,
       team: pick.team,
@@ -184,6 +211,7 @@ export class Pick implements OnInit, OnDestroy {
       line: pick.line,
       week: pick.week,
       season: pick.season,
+      loy: !!pick.loy,
     };
   }
 
@@ -200,7 +228,24 @@ export class Pick implements OnInit, OnDestroy {
   }
 
   get canPick(): boolean {
-    return this.picksOpen && !this.weekLocked && !this.submitting && !this.lineChange;
+    return (
+      this.picksOpen &&
+      !this.weekLocked &&
+      !this.submitting &&
+      !this.lineChange &&
+      !this.confirmOpen
+    );
+  }
+
+  get showEventSubmit(): boolean {
+    return this.picksOpen && !this.weekLocked && !!this.selected;
+  }
+
+  get selectedMatchup(): string | null {
+    if (!this.selected) return null;
+    const event = this.eventOdds.find((row) => row.id === this.selected?.eventId);
+    if (!event) return null;
+    return `${event.away_team} at ${event.home_team}`;
   }
 
   selectPick(
@@ -298,8 +343,22 @@ export class Pick implements OnInit, OnDestroy {
     );
   }
 
-  onSubmitForm(event: Event): void {
-    event.preventDefault();
+  openConfirm(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (!this.selected || !this.picksOpen || this.weekLocked || this.submitting) {
+      return;
+    }
+    this.error = null;
+    this.confirmOpen = true;
+  }
+
+  closeConfirm(): void {
+    if (this.submitting) return;
+    this.confirmOpen = false;
+  }
+
+  confirmAndSubmit(): void {
     this.submitPick(false);
   }
 
@@ -310,17 +369,33 @@ export class Pick implements OnInit, OnDestroy {
     const headers = this.auth.authHeaders();
     this.http.post(`${environment.apiBaseUrl}/picks`, {
       ...this.selected,
+      sportKey: this.sportService.sportKey(),
+      loy: this.loyAvailable && this.useLoy,
       acceptChangedLine,
     }, { headers }).subscribe({
       next: () => {
         this.submitting = false;
         this.weekLocked = true;
+        this.confirmOpen = false;
         this.lineChange = null;
+        if (this.loyAvailable && this.useLoy) {
+          this.loyAvailable = false;
+          if (this.selected) {
+            this.selected = { ...this.selected, loy: true };
+          }
+        }
       },
       error: (err) => {
         this.submitting = false;
         const body = err.error;
+        if (err.status === 409 && body?.code === 'LOY_ALREADY_USED') {
+          this.loyAvailable = false;
+          this.useLoy = false;
+          this.error = body?.message || 'You already used your LOY this season for this sport.';
+          return;
+        }
         if (err.status === 409 && body?.code === 'LINE_CHANGED') {
+          this.confirmOpen = false;
           this.lineChange = {
             eventId: body.eventId,
             team: body.team,
@@ -332,6 +407,7 @@ export class Pick implements OnInit, OnDestroy {
           return;
         }
         if (err.status === 409) {
+          this.confirmOpen = false;
           this.setData();
           return;
         }
@@ -383,6 +459,28 @@ export class Pick implements OnInit, OnDestroy {
       const eventDate = new Date(eo.commence_time);
       return eventDate >= weekStart && eventDate <= this.currentWeekEnd;
     });
+  }
+
+  get conferenceOptions(): ConferenceOption[] {
+    return getConferencesForSport(this.sportKey);
+  }
+
+  get visibleEventOdds(): IEventOdds[] {
+    if (!this.conferenceFilter) return this.eventOdds;
+    return this.eventOdds.filter((event) =>
+      eventHasConference(event, this.sportKey, this.conferenceFilter),
+    );
+  }
+
+  get conferenceFilterLabel(): string | null {
+    return getConferenceLabel(this.conferenceFilter, this.sportKey);
+  }
+
+  teamConferenceLabel(teamName: string): string | null {
+    return getConferenceLabel(
+      getTeamConferenceId(teamName, this.sportKey),
+      this.sportKey,
+    );
   }
 
   getSportAbbr(): string {

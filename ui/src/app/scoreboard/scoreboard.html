@@ -1,0 +1,187 @@
+<main class="locksonly-page scoreboard-page">
+  <div class="container-xl">
+    <header class="locksonly-page-header text-center">
+      <h1>LocksOnly</h1>
+      @if (data) {
+        <div class="locksonly-week-label">
+          Week {{ data.week }}
+          <span class="week-dot">•</span>
+          {{ sportLabel }}
+          <span class="week-dot">•</span>
+          {{ data.season }}
+          <span class="week-dot">•</span>
+          {{ data.rangeLabel }}
+        </div>
+      }
+    </header>
+
+    @if (loading) {
+      <div class="text-center my-5">
+        <div class="spinner-border" role="status"></div>
+      </div>
+    } @else if (error) {
+      <div class="locksonly-notice locksonly-notice--danger" role="alert">{{ error }}</div>
+    } @else if (data) {
+      <section class="top-picks-board" aria-labelledby="top-picks-heading">
+        <h2 id="top-picks-heading" class="scoreboard-section-title">This week's top picks</h2>
+        @if (!data.topPicks.length) {
+          <p class="text-muted mb-0">No picks yet this week.</p>
+        } @else {
+          <ol class="top-picks-list">
+            @for (pick of data.topPicks; track pick.label; let i = $index) {
+              <li class="top-pick-card">
+                <span class="top-pick-rank">{{ i + 1 }}</span>
+                <div class="top-pick-body">
+                  <div class="top-pick-label">{{ pick.label }}</div>
+                  <div class="top-pick-meta">
+                    {{ pick.count }} {{ pick.count === 1 ? 'pick' : 'picks' }}
+                    • {{ pick.pct }}%
+                  </div>
+                  <div class="top-pick-bar" aria-hidden="true">
+                    <span [style.width.%]="pick.pct"></span>
+                  </div>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </section>
+
+      @if (podium.length) {
+        <section class="season-podium" aria-labelledby="podium-heading">
+          <h2 id="podium-heading" class="scoreboard-section-title">Season leaders</h2>
+          <div class="podium-grid">
+            @if (podiumAt(2); as second) {
+              <a class="podium-card podium-card--second" [routerLink]="['/players', second.userId]">
+                <span class="podium-place">2nd</span>
+                <span class="podium-name">{{ second.displayName }}</span>
+                <span class="podium-pts">{{ second.points }} pts</span>
+              </a>
+            } @else {
+              <div class="podium-card podium-card--second is-empty">
+                <span class="podium-place">2nd</span>
+                <span class="podium-name">—</span>
+              </div>
+            }
+            @if (podiumAt(1); as first) {
+              <a class="podium-card podium-card--first" [routerLink]="['/players', first.userId]">
+                <span class="podium-place">1st</span>
+                <span class="podium-name">{{ first.displayName }}</span>
+                <span class="podium-pts">{{ first.points }} pts</span>
+              </a>
+            }
+            @if (podiumAt(3); as third) {
+              <a class="podium-card podium-card--third" [routerLink]="['/players', third.userId]">
+                <span class="podium-place">3rd</span>
+                <span class="podium-name">{{ third.displayName }}</span>
+                <span class="podium-pts">{{ third.points }} pts</span>
+              </a>
+            } @else {
+              <div class="podium-card podium-card--third is-empty">
+                <span class="podium-place">3rd</span>
+                <span class="podium-name">—</span>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="scoreboard-standings" aria-labelledby="standings-heading">
+        <h2 id="standings-heading" class="scoreboard-section-title">Season standings</h2>
+        @if (!data.standings.length) {
+          <p class="text-muted">No players yet.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle scoreboard-table">
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Player</th>
+                  <th scope="col">Pts</th>
+                  <th class="d-none d-lg-table-cell" scope="col">Record</th>
+                  <th scope="col">This week</th>
+                  <th scope="col">Streak</th>
+                  <th class="d-none d-lg-table-cell" scope="col">LOY</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of data.standings; track row.userId) {
+                  <tr
+                    class="player-row"
+                    [class.locksonly-loy-row]="row.loyUsed"
+                    [routerLink]="['/players', row.userId]"
+                    tabindex="0"
+                    (keydown)="onRowKey($event, row.userId)"
+                  >
+                    <td>
+                      <span class="rank-cell">
+                        {{ row.rank }}
+                        <span class="rank-movement" [class]="deltaClass(row.rankDelta)">
+                          {{ formatDelta(row.rankDelta) }}
+                        </span>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="player-name">{{ row.displayName }}</span>
+                      @if (row.loneWolf) {
+                        <span class="lone-wolf-badge">Lone wolf</span>
+                      }
+                    </td>
+                    <td class="fw-bold">{{ row.points }}</td>
+                    <td class="d-none d-lg-table-cell">{{ row.record }}</td>
+                    <td class="pick-col">
+                      @if (row.currentWeekPick) {
+                        {{ row.currentWeekPick }}
+                      } @else {
+                        <span class="text-muted">No pick</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="streak-badge">{{ row.streak }}</span>
+                    </td>
+                    <td class="d-none d-lg-table-cell">
+                      @if (row.loyUsed) {
+                        <span class="loy-status">Used</span>
+                      } @else {
+                        <span class="loy-status loy-status--open">Available</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="weekly-leaders d-none d-md-block" aria-labelledby="weekly-heading">
+        <h2 id="weekly-heading" class="scoreboard-section-title">This week's leaders</h2>
+        @if (!data.weeklyLeaders.length) {
+          <p class="text-muted mb-0">No graded games yet this week.</p>
+        } @else {
+          <ol class="weekly-leaders-list">
+            @for (leader of data.weeklyLeaders; track leader.userId; let i = $index) {
+              <li>
+                <a [routerLink]="['/players', leader.userId]">{{ leader.displayName }}</a>
+                <span>{{ weeklyPointsLabel(leader.points) }} pts</span>
+              </li>
+            }
+          </ol>
+        }
+      </section>
+
+      <section class="activity-feed" aria-labelledby="activity-heading">
+        <h2 id="activity-heading" class="scoreboard-section-title">Recent activity</h2>
+        @if (!data.activity.length) {
+          <p class="text-muted mb-0">No recent activity yet.</p>
+        } @else {
+          <ul class="activity-list">
+            @for (item of data.activity; track item.at + item.text) {
+              <li class="activity-item">{{ item.text }}</li>
+            }
+          </ul>
+        }
+      </section>
+    }
+  </div>
+</main>

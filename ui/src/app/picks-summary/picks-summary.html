@@ -1,6 +1,11 @@
 <main class="locksonly-page">
 <div class="container-xl">
-  <h2 class="mb-4 text-center">Picks by Week</h2>
+  <h2 class="mb-4 text-center">{{ sportLabel }} Picks by Week</h2>
+  @if (auth.isAdmin()) {
+    <p class="text-center text-muted mb-3">
+      Undo a pick to reopen that sport and week so the player can submit again.
+    </p>
+  }
 
   <div class="row g-3 mb-3">
     <div class="col-auto">
@@ -40,14 +45,36 @@
           <th scope="col">Display Name</th>
           <th scope="col">Pick</th>
           <th scope="col">Status</th>
+          @if (auth.isAdmin()) {
+            <th scope="col">Admin</th>
+          }
         </tr>
       </thead>
       <tbody>
         @for (pick of filteredPicks; track pick._id) {
-          <tr>
-            <td>{{ pick.userId.displayName }}</td>
-            <td>{{ pickLabel(pick) }}</td>
+          <tr [class.locksonly-loy-row]="!!pick.supercharged">
+            <td>{{ playerName(pick) }}</td>
+            <td>
+              <div class="picks-summary-pick">
+                <span>{{ pickLabel(pick) }}</span>
+                @if (pick.supercharged) {
+                  <span class="locksonly-loy-badge">LOY</span>
+                }
+              </div>
+            </td>
             <td>{{ pick.status }}</td>
+            @if (auth.isAdmin()) {
+              <td>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="askUndo(pick)"
+                  [disabled]="undoing"
+                >
+                  Undo
+                </button>
+              </td>
+            }
           </tr>
         }
       </tbody>
@@ -55,3 +82,62 @@
   </div>
 </div>
 </main>
+
+@if (undoTarget) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="undo-pick-title">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="undo-pick-title">Undo this pick?</h2>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+            (click)="cancelUndo()"
+            [disabled]="undoing"
+          ></button>
+        </div>
+        <div class="modal-body">
+          @if (undoError) {
+            <div class="alert alert-danger">{{ undoError }}</div>
+          }
+          <p class="mb-2">
+            This removes
+            <strong>{{ playerName(undoTarget) }}</strong>'s
+            Week {{ undoTarget.week }} lock:
+            <strong>{{ pickLabel(undoTarget) }}</strong>
+            @if (undoTarget.supercharged) {
+              <span class="locksonly-loy-badge">LOY</span>
+            }
+          </p>
+          <p class="mb-0 text-muted">
+            They will be able to submit a new pick for this sport and week.
+            If this was their LOY, they get it back.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="cancelUndo()"
+            [disabled]="undoing"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            (click)="confirmUndo()"
+            [disabled]="undoing"
+          >
+            @if (undoing) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Undo pick
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

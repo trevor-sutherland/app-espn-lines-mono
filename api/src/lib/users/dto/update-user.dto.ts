@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { ALL_SPORT_KEYS } from '../../utils/sports';
 
 export class UpdateUserDto {
   @IsEmail()
@@ -14,4 +15,8 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(6)
   password?: string;
+
+  @IsArray()
+  @IsIn(ALL_SPORT_KEYS, { each: true })
+  sports!: string[];
 }

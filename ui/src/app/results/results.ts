@@ -1,9 +1,11 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ResultsService } from './results.service';
 import { IStandingRow } from './results.model';
 import { DateService } from '../services/date.service';
+import { SportService } from '../services/sport.service';
+import { SPORT_OPTIONS } from '../enums/sports.enum';
 
 @Component({
   selector: 'app-results',
@@ -23,6 +25,21 @@ export class ResultsComponent implements OnInit {
 
   private readonly resultsService = inject(ResultsService);
   private readonly dateService = inject(DateService);
+  private readonly sportService = inject(SportService);
+
+  constructor() {
+    effect(() => {
+      this.sportService.sportKey();
+      if (this.season) {
+        this.loadStandings();
+      }
+    });
+  }
+
+  get sportLabel(): string {
+    const key = this.sportService.sportKey();
+    return SPORT_OPTIONS.find((option) => option.key === key)?.label ?? key;
+  }
 
   ngOnInit(): void {
     const current = this.dateService.getSeasonYear();
@@ -43,7 +60,9 @@ export class ResultsComponent implements OnInit {
     this.loading = true;
     this.error = null;
     const seasonNum = Number(this.season);
-    this.resultsService.getStandings(seasonNum).subscribe({
+    this.resultsService
+      .getStandings(seasonNum, this.sportService.sportKey())
+      .subscribe({
       next: (res) => {
         this.standings = res.standings ?? [];
         this.loading = false;

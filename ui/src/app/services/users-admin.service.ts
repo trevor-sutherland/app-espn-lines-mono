@@ -11,6 +11,7 @@ export type AdminUser = {
   role: UserRole;
   approved: boolean;
   active: boolean;
+  sports: string[];
   createdAt?: string;
 };
 
@@ -30,6 +31,7 @@ export class UsersAdminService {
     email: string;
     password: string;
     displayName: string;
+    sports: string[];
   }): Observable<AdminUser> {
     return this.http.post<AdminUser>(this.baseUrl, payload, {
       headers: this.auth.authHeaders(),
@@ -38,7 +40,7 @@ export class UsersAdminService {
 
   updateUser(
     userId: string,
-    payload: { email: string; displayName: string; password?: string },
+    payload: { email: string; displayName: string; password?: string; sports: string[] },
   ): Observable<AdminUser> {
     return this.http.patch<AdminUser>(`${this.baseUrl}/${userId}`, payload, {
       headers: this.auth.authHeaders(),

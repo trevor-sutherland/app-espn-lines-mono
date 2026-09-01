@@ -1,4 +1,5 @@
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { ALL_SPORT_KEYS } from '../../utils/sports';
 import type { UserRole } from '../users.schema';
 
 export class CreateUserDto {
@@ -16,4 +17,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsIn(['user', 'admin'])
   role?: UserRole;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(ALL_SPORT_KEYS, { each: true })
+  sports?: string[];
 }

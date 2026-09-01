@@ -1,7 +1,7 @@
 @if (auth.isLoggedIn()) {
   <nav class="navbar navbar-expand-lg navbar-dark locksonly-navbar">
     <div class="container-xl">
-      <a class="navbar-brand locksonly-brand" routerLink="/pick">
+      <a class="navbar-brand locksonly-brand" routerLink="/home">
         <img
           src="/assets/locksonly-logo.png"
           alt="LocksOnly"
@@ -26,6 +26,16 @@
         id="locksOnlyNavbar"
       >
         <ul class="navbar-nav me-auto mb-2 mb-lg-0 locksonly-main-nav">
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              routerLink="/home"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+            >
+              Home
+            </a>
+          </li>
           <li class="nav-item">
             <a
               class="nav-link"
@@ -73,7 +83,7 @@
             [ngModel]="sportService.sportKey()"
             (ngModelChange)="sportService.setSportKey($event)"
           >
-            @for (sport of sports; track sport.key) {
+            @for (sport of sports(); track sport.key) {
               <option [value]="sport.key">{{ sport.label }}</option>
             }
           </select>

@@ -10,6 +10,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminUser, UsersAdminService } from '../services/users-admin.service';
 import { AuthService } from '../services/auth.service';
+import {
+  ALL_SPORT_KEYS,
+  SPORT_OPTIONS,
+  resolveUserSports,
+  type SportKey,
+} from '../enums/sports.enum';
 
 export type StatusFilter = 'all' | 'active' | 'inactive' | 'pending';
 
@@ -32,10 +38,13 @@ export class AdminUsersComponent implements OnInit {
   readonly search = signal('');
   readonly statusFilter = signal<StatusFilter>('all');
 
+  readonly sportOptions = SPORT_OPTIONS;
+
   newDisplayName = '';
   newEmail = '';
   newPassword = '';
   newConfirmPassword = '';
+  newSports: SportKey[] = [...ALL_SPORT_KEYS];
 
   readonly filteredUsers = computed(() => {
     const q = this.search().trim().toLowerCase();
@@ -97,7 +106,12 @@ export class AdminUsersComponent implements OnInit {
   }
 
   get canSubmitUser(): boolean {
-    if (!this.newDisplayName.trim() || !this.newEmail.trim() || !this.passwordsMatch) {
+    if (
+      !this.newDisplayName.trim() ||
+      !this.newEmail.trim() ||
+      !this.passwordsMatch ||
+      !this.newSports.length
+    ) {
       return false;
     }
     if (this.isEditing) {
@@ -106,12 +120,33 @@ export class AdminUsersComponent implements OnInit {
     return this.newPassword.length >= 6;
   }
 
+  isSportSelected(key: SportKey): boolean {
+    return this.newSports.includes(key);
+  }
+
+  toggleSport(key: SportKey, checked: boolean): void {
+    if (checked) {
+      if (!this.newSports.includes(key)) {
+        this.newSports = [...this.newSports, key];
+      }
+      return;
+    }
+    this.newSports = this.newSports.filter((sport) => sport !== key);
+  }
+
+  sportLabels(user: AdminUser): string {
+    return resolveUserSports(user.sports)
+      .map((key) => SPORT_OPTIONS.find((option) => option.key === key)?.label ?? key)
+      .join(', ');
+  }
+
   selectUser(user: AdminUser): void {
     this.editingUserId.set(user.id);
     this.newDisplayName = user.displayName || '';
     this.newEmail = user.email;
     this.newPassword = '';
     this.newConfirmPassword = '';
+    this.newSports = resolveUserSports(user.sports);
     this.error.set(null);
     this.createSuccess.set(null);
   }
@@ -122,6 +157,7 @@ export class AdminUsersComponent implements OnInit {
     this.newEmail = '';
     this.newPassword = '';
     this.newConfirmPassword = '';
+    this.newSports = [...ALL_SPORT_KEYS];
     this.error.set(null);
     this.createSuccess.set(null);
   }
@@ -132,6 +168,7 @@ export class AdminUsersComponent implements OnInit {
     this.newEmail = '';
     this.newPassword = '';
     this.newConfirmPassword = '';
+    this.newSports = [...ALL_SPORT_KEYS];
   }
 
   saveUser(e: Event): void {
@@ -141,8 +178,8 @@ export class AdminUsersComponent implements OnInit {
     if (!this.canSubmitUser) {
       this.error.set(
         this.isEditing
-          ? 'Fill in name and email. If changing the password, use 6+ matching characters.'
-          : 'Fill in name, email, and matching passwords (6+ characters).',
+          ? 'Fill in name, email, and at least one sport. If changing the password, use 6+ matching characters.'
+          : 'Fill in name, email, at least one sport, and matching passwords (6+ characters).',
       );
       return;
     }
@@ -153,6 +190,7 @@ export class AdminUsersComponent implements OnInit {
         .updateUser(userId, {
           email: this.newEmail.trim(),
           displayName: this.newDisplayName.trim(),
+          sports: this.newSports,
           ...(this.newPassword ? { password: this.newPassword } : {}),
         })
         .subscribe({
@@ -160,6 +198,9 @@ export class AdminUsersComponent implements OnInit {
             this.users.update((list) =>
               list.map((u) => (u.id === userId ? updated : u)),
             );
+            if (userId === this.auth.session()?.userId) {
+              this.auth.setSessionSports(updated.sports);
+            }
             this.createSuccess.set(`Saved changes for ${updated.email}.`);
             this.newPassword = '';
             this.newConfirmPassword = '';
@@ -177,6 +218,7 @@ export class AdminUsersComponent implements OnInit {
         email: this.newEmail.trim(),
         password: this.newPassword,
         displayName: this.newDisplayName.trim(),
+        sports: this.newSports,
       })
       .subscribe({
         next: (created) => {

@@ -9,6 +9,23 @@
           {{ weekRangeLabel }}
         </div>
       }
+      @if (!loading && conferenceOptions.length) {
+        <div class="locksonly-conference-filter">
+          <label class="form-label" for="conference-filter">Conference</label>
+          <select
+            id="conference-filter"
+            name="conferenceFilter"
+            class="form-select"
+            [(ngModel)]="conferenceFilter"
+            [ngModelOptions]="{standalone: true}"
+          >
+            <option value="">All Games</option>
+            @for (conference of conferenceOptions; track conference.id) {
+              <option [value]="conference.id">{{ conference.label }}</option>
+            }
+          </select>
+        </div>
+      }
     </section>
 
     @if (loading) {
@@ -50,15 +67,18 @@
     @if (!loading && weekLocked && selected) {
       <div class="locksonly-notice locksonly-notice--success">
         <div>
-          Week {{ selected.week }} is locked. Your pick:
+          Week {{ selected.week }} is locked for {{ getSportAbbr().toUpperCase() }}. Your pick:
           <strong>{{ formatPickLabel(selected.team, selected.line, selected.market) }}</strong>
+          @if (selected.loy) {
+            <span class="locksonly-loy-badge">LOY</span>
+          }
         </div>
       </div>
     }
 
-    @if (!loading && eventOdds.length) {
-      <form (submit)="onSubmitForm($event)">
-        @for (event of eventOdds; track event.id) {
+    @if (!loading && visibleEventOdds.length) {
+      <form>
+        @for (event of visibleEventOdds; track event.id) {
           @if (event.bookmakers.length !== 0) {
             <section class="locksonly-game-card">
               <div class="locksonly-game-header">
@@ -109,7 +129,17 @@
                       />
                     </svg>
                   </div>
-                  @if (isEventSelected(event.id)) {
+                  @if (showEventSubmit && isEventSelected(event.id)) {
+                    <button
+                      type="button"
+                      class="game-header-submit"
+                      (click)="openConfirm($event)"
+                      [disabled]="submitting"
+                    >
+                      <span aria-hidden="true">✓</span>
+                      Submit
+                    </button>
+                  } @else if (weekLocked && isEventSelected(event.id)) {
                     <div class="game-header-mark" aria-hidden="true">✓</div>
                   }
                 </div>
@@ -133,7 +163,12 @@
                             alt=""
                           />
                         }
-                        <span class="team-name">{{ side.team }}</span>
+                        <div class="team-identity">
+                          <span class="team-name">{{ side.team }}</span>
+                          @if (teamConferenceLabel(side.team); as conference) {
+                            <span class="team-conference">{{ conference }}</span>
+                          }
+                        </div>
                       </div>
                       <div class="line-cell">
                         @if (outcomeNamed(bookmaker, 'spreads', side.team); as spread) {
@@ -189,23 +224,13 @@
           }
         }
 
-        @if (canPick) {
-          <div class="locksonly-save-area">
-            <button
-              class="btn btn-locksonly-primary btn-save-picks"
-              type="submit"
-              [disabled]="!selected || submitting"
-            >
-              @if (submitting) {
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-              } @else {
-                <span class="save-check" aria-hidden="true">✓</span>
-              }
-              Submit Pick
-            </button>
-          </div>
-        }
       </form>
+    }
+
+    @if (!loading && eventOdds.length && !visibleEventOdds.length) {
+      <div class="locksonly-notice locksonly-notice--info">
+        No games this week with a {{ conferenceFilterLabel }} team.
+      </div>
     }
 
     @if (!loading && !eventOdds.length) {
@@ -215,6 +240,76 @@
     }
   </div>
 </main>
+
+@if (confirmOpen && selected) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="confirm-pick-title">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="confirm-pick-title">Confirm your pick</h2>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+            (click)="closeConfirm()"
+            [disabled]="submitting"
+          ></button>
+        </div>
+        <div class="modal-body">
+          @if (error) {
+            <div class="alert alert-danger">{{ error }}</div>
+          }
+          <p class="mb-2">
+            Week {{ selected.week }} {{ getSportAbbr().toUpperCase() }}
+          </p>
+          @if (selectedMatchup) {
+            <p class="text-muted mb-2">{{ selectedMatchup }}</p>
+          }
+          <p class="fs-5 mb-3">
+            <strong>{{ formatPickLabel(selected.team, selected.line, selected.market) }}</strong>
+          </p>
+          @if (loyAvailable) {
+            <label class="locksonly-loy-option">
+              <input
+                type="checkbox"
+                [checked]="useLoy"
+                [disabled]="submitting"
+                (change)="useLoy = $any($event.target).checked"
+              />
+              <span>
+                <strong>LOY</strong>
+                — Use your one Lock of the Year on this pick.
+                Win = 2 points, loss or push = −1. You only get one per season for this sport.
+              </span>
+            </label>
+          }
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="closeConfirm()"
+            [disabled]="submitting"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-locksonly-primary"
+            (click)="confirmAndSubmit()"
+            [disabled]="submitting"
+          >
+            @if (submitting) {
+              <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Confirm pick
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
 
 @if (lineChange) {
   <div class="modal-backdrop fade show"></div>

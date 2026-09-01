@@ -365,6 +365,31 @@ body.locksonly-body {
 
 }
 
+.locksonly-conference-filter {
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    width: min(100%, 18rem);
+
+    margin: 1rem auto 0;
+
+    text-align: left;
+
+}
+
+.locksonly-conference-filter .form-label {
+
+    margin-bottom: 0.35rem;
+
+    color: var(--lo-text-muted);
+
+    font-size: 0.8rem;
+    font-weight: 600;
+
+}
+
 
 /* ==========================================================
    NOTICE
@@ -559,9 +584,12 @@ body.locksonly-body {
     position: relative;
 
     display: flex;
+    flex-wrap: wrap;
 
     align-items: center;
     justify-content: space-between;
+
+    gap: 0.45rem;
 
     min-height: 48px;
 
@@ -641,6 +669,7 @@ body.locksonly-body {
     z-index: 2;
 
     display: flex;
+    flex-shrink: 0;
     align-items: center;
 
     gap: 0.65rem;
@@ -652,6 +681,65 @@ body.locksonly-body {
     display: flex;
 
     color: rgba(41, 200, 23, 0.72);
+
+}
+
+.game-header-submit {
+
+    position: relative;
+
+    z-index: 2;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 0.3rem;
+
+    min-height: 32px;
+
+    padding: 0.3rem 0.75rem;
+
+    color: #041323;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--lo-green-light),
+            var(--lo-green)
+        );
+
+    border: none;
+    border-radius: 999px;
+
+    font-size: 0.74rem;
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    box-shadow: 0 2px 8px rgba(21, 157, 11, 0.28);
+
+}
+
+.game-header-submit:hover,
+.game-header-submit:focus-visible {
+
+    color: #041323;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6ee64d,
+            var(--lo-green-light)
+        );
+
+}
+
+.game-header-submit:disabled {
+
+    opacity: 0.7;
+    cursor: default;
 
 }
 
@@ -829,6 +917,17 @@ body.locksonly-body {
 
 }
 
+.team-identity {
+
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 0.1rem;
+
+}
+
 .team-name {
 
     overflow: hidden;
@@ -843,6 +942,19 @@ body.locksonly-body {
     white-space: nowrap;
 
     text-overflow: ellipsis;
+
+}
+
+.team-conference {
+
+    color: var(--lo-text-muted);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+
+    letter-spacing: 0.04em;
+
+    text-transform: uppercase;
 
 }
 
@@ -1139,11 +1251,98 @@ body.locksonly-body {
 .locksonly-save-area {
 
     display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 1rem;
 
     justify-content: center;
 
     padding-top:
         0.35rem;
+
+}
+
+.locksonly-loy-option {
+
+    display: flex;
+    align-items: flex-start;
+
+    gap: 0.7rem;
+
+    max-width: 420px;
+
+    margin: 0;
+
+    padding: 0.85rem 1rem;
+
+    color: var(--lo-text);
+
+    background: var(--lo-white);
+
+    border: 1px solid var(--lo-border-dark);
+
+    border-radius: var(--lo-radius);
+
+    box-shadow: var(--lo-shadow-sm);
+
+    cursor: pointer;
+
+    font-size: 0.92rem;
+
+}
+
+.locksonly-loy-option input {
+
+    width: 1.15rem;
+    height: 1.15rem;
+
+    margin-top: 0.15rem;
+
+    accent-color: var(--lo-green);
+
+    cursor: pointer;
+
+}
+
+.locksonly-loy-badge {
+
+    display: inline-block;
+
+    margin-left: 0.4rem;
+
+    padding: 0.12rem 0.45rem;
+
+    color: var(--lo-white);
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--lo-green-light),
+            var(--lo-green-dark)
+        );
+
+    border-radius: 999px;
+
+    font-size: 0.7rem;
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+
+    vertical-align: middle;
+
+    white-space: nowrap;
+
+}
+
+.table-striped > tbody > tr.locksonly-loy-row:nth-of-type(n) > * {
+
+    --bs-table-bg: #f3e8ff;
+    --bs-table-striped-bg: #f3e8ff;
+    --bs-table-accent-bg: #f3e8ff;
+    --bs-table-bg-type: #f3e8ff;
+
+    background-color: #f3e8ff;
 
 }
 

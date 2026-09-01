@@ -30,6 +30,18 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'home',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./scoreboard/scoreboard').then((m) => m.ScoreboardComponent),
+  },
+  {
+    path: 'players/:userId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./player/player').then((m) => m.PlayerComponent),
+  },
+  {
     path: 'pick',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -68,10 +80,10 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'login',
+    redirectTo: 'home',
   },
   {
     path: '**',
-    redirectTo: 'login',
+    redirectTo: 'home',
   },
 ];

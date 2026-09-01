@@ -8,6 +8,7 @@ import { EventsModule } from './events/events.module';
 import { OddsModule } from './odds/odds.module';
 import { ResultsModule } from './results/results.module';
 import { PotModule } from './pot/pot.module';
+import { ScoreboardModule } from './scoreboard/scoreboard.module';
 import { HealthModule } from './health/health.module';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -39,6 +40,7 @@ import { mongoConnectOptions, resolveMongoUri } from './mongo-uri';
     EventsModule,
     OddsModule,
     ResultsModule,
+    ScoreboardModule,
     PotModule,
   ],
 })

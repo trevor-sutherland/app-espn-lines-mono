@@ -1,6 +1,8 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
+  effect,
   inject,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,7 +13,7 @@ import { AuthService } from '../services/auth.service';
 import { SportService } from '../services/sport.service';
 import { NflOddsService } from '../services/sport-odds-service';
 import { ResultsService } from '../results/results.service';
-import { SportsEnum } from '../enums/sports.enum';
+import { SPORT_OPTIONS, resolveUserSports } from '../enums/sports.enum';
 
 @Component({
   selector: 'app-nav',
@@ -32,6 +34,11 @@ export class NavComponent {
   syncingResults = false;
   navCollapsed = true;
 
+  readonly sports = computed(() => {
+    const allowed = new Set(resolveUserSports(this.auth.session()?.sports));
+    return SPORT_OPTIONS.filter((sport) => allowed.has(sport.key));
+  });
+
   constructor() {
     this.router.events
       .pipe(
@@ -41,18 +48,18 @@ export class NavComponent {
       .subscribe(() => {
         this.navCollapsed = true;
       });
+
+    effect(() => {
+      const keys = this.sports().map((sport) => sport.key);
+      if (keys.length && !keys.includes(this.sportService.sportKey() as (typeof keys)[number])) {
+        this.sportService.setSportKey(keys[0]);
+      }
+    });
   }
 
   toggleNav(): void {
     this.navCollapsed = !this.navCollapsed;
   }
-
-  readonly sports = [
-    { key: SportsEnum.NFL, label: 'NFL' },
-    { key: SportsEnum.NCAAF, label: 'NCAAF' },
-    { key: SportsEnum.NBA, label: 'NBA' },
-    { key: SportsEnum.NCAAB, label: 'NCAAB' },
-  ];
 
   onRefreshOdds(): void {
     if (!this.auth.isAdmin()) return;

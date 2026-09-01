@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { LoginResponse } from '../login/login-response.interface';
 import { environment } from '../../environments/environment';
+import { resolveUserSports, type SportKey } from '../enums/sports.enum';
 
 export type UserRole = 'user' | 'admin';
 
@@ -11,6 +12,7 @@ export type JwtUser = {
   userId: string;
   email: string;
   role: UserRole;
+  sports: SportKey[];
 };
 
 @Injectable({ providedIn: 'root' })
@@ -120,6 +122,13 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
+  /** Apply sports from an admin save without forcing a re-login. */
+  setSessionSports(sports: string[]): void {
+    const current = this.session();
+    if (!current) return;
+    this.session.set({ ...current, sports: resolveUserSports(sports) });
+  }
+
   private readSession(): JwtUser | null {
     const token = localStorage.getItem(this.tokenKey);
     return token ? this.decodeToken(token) : null;
@@ -131,6 +140,7 @@ export class AuthService {
         sub?: string;
         email?: string;
         role?: UserRole;
+        sports?: string[];
         exp?: number;
       };
       if (payload.exp && payload.exp * 1000 < Date.now()) {
@@ -142,6 +152,7 @@ export class AuthService {
         userId: payload.sub,
         email: payload.email,
         role: payload.role === 'admin' ? 'admin' : 'user',
+        sports: resolveUserSports(payload.sports),
       };
     } catch {
       return null;

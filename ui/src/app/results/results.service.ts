@@ -11,12 +11,15 @@ export class ResultsService {
   private readonly auth = inject(AuthService);
   private readonly baseUrl = `${environment.apiBaseUrl}/results`;
 
-  getStandings(season?: number): Observable<{ standings: IStandingRow[] }> {
-    const params =
-      season != null ? `?season=${encodeURIComponent(String(season))}` : '';
+  getStandings(
+    season: number | undefined,
+    sportKey: string,
+  ): Observable<{ standings: IStandingRow[] }> {
+    const params: Record<string, string> = { sportKey };
+    if (season != null) params['season'] = String(season);
     return this.http.get<{ standings: IStandingRow[] }>(
-      `${this.baseUrl}/standings${params}`,
-      { headers: this.auth.authHeaders() },
+      `${this.baseUrl}/standings`,
+      { headers: this.auth.authHeaders(), params },
     );
   }
 

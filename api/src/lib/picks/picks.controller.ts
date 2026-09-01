@@ -6,17 +6,25 @@ import {
   Req,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
   HttpException,
   HttpStatus,
   Get,
   Query,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import { PicksService } from './picks.service';
 import { CreatePickDto } from './dto/create-pick.dto';
 import { OddsService } from '../odds/odds.service';
+import { UsersService } from '../users/users.service';
+import { PickNotificationService } from './pick-notification.service';
 import type { Request } from 'express';
 import { getCurrentSeasonAndWeek } from '../utils/seasson-week.util';
+import { parseSportQuery, type SportKey } from '../utils/sports';
 
 // Extend Express Request interface to include 'user'
 declare module 'express-serve-static-core' {
@@ -34,12 +42,13 @@ export class PicksController {
   constructor(
     private readonly picksService: PicksService,
     private readonly oddsService: OddsService,
+    private readonly usersService: UsersService,
+    private readonly pickNotifications: PickNotificationService,
   ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   async createPick(@Body() createPickDto: CreatePickDto, @Req() req: Request) {
-    // Get userId from JWT payload
     const user = req.user as { userId?: string; sub?: string };
     const userId = user.userId || user.sub;
     if (!userId) throw new ConflictException('User not authenticated');
@@ -51,16 +60,21 @@ export class PicksController {
     }
     const season = current.season;
     const week = current.week;
-    console.log(createPickDto);
+    const sportKey = await this.requireEventSportAccess(
+      userId,
+      createPickDto.eventId,
+    );
 
-    // Check for existing pick
-    const existing = await this.picksService.findOneByUserSeasonWeek(
+    const existing = await this.picksService.findOneByUserSeasonWeekSport(
       userId,
       season,
       week,
+      sportKey,
     );
     if (existing) {
-      throw new ConflictException('You already made a pick for this week');
+      throw new ConflictException(
+        'You already made a pick for this sport this week',
+      );
     }
 
     const market = this.resolveMarket(createPickDto);
@@ -114,51 +128,82 @@ export class PicksController {
       );
     }
 
+    const wantsLoy = createPickDto.loy === true;
+    if (wantsLoy) {
+      const alreadyUsed = await this.picksService.hasSeasonLoy(
+        userId,
+        season,
+        sportKey,
+      );
+      if (alreadyUsed) {
+        throw new ConflictException({
+          code: 'LOY_ALREADY_USED',
+          message: 'You already used your LOY this season for this sport.',
+        });
+      }
+    }
+
     const pickToSave = {
-      ...createPickDto,
       userId,
+      eventId: createPickDto.eventId,
+      sportKey,
       season,
       week,
       market,
       team: selection,
       line: currentLine,
       lockedAt: new Date(),
+      acceptChangedLine: createPickDto.acceptChangedLine,
+      supercharged: wantsLoy,
     };
 
-    console.log(pickToSave);
-    // Save the pick (assuming your service expects userId and the DTO)
-    return this.picksService.createPick(pickToSave);
+    const saved = await this.picksService.createPick(pickToSave);
+    void this.pickNotifications.notifySavedPick(saved);
+    return saved;
   }
 
   @Get('all')
   async getAllPicks() {
-    // Populate userId with displayName from users collection
     return await this.picksService.getAllPicksWithUser();
   }
 
-  /** Current user's pick for a season/week (null if none). */
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async undoPick(@Param('id') id: string, @Req() req: Request) {
+    const adminId = this.requireUserId(req);
+    return this.picksService.undoPick(id, adminId);
+  }
+
+  /** Current user's pick for a season/week/sport (null if none). */
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   async getMyPick(
     @Req() req: Request,
     @Query('season') seasonRaw?: string,
     @Query('week') weekRaw?: string,
+    @Query('sportKey') sportKeyRaw?: string,
   ) {
-    const user = req.user as { userId?: string; sub?: string };
-    const userId = user.userId || user.sub;
-    if (!userId) throw new ConflictException('User not authenticated');
+    const userId = this.requireUserId(req);
+    const sportKey = await this.requireQuerySportAccess(userId, sportKeyRaw);
 
     const fallback = getCurrentSeasonAndWeek();
     const season = seasonRaw ? Number(seasonRaw) : fallback.season;
     const week = weekRaw ? Number(weekRaw) : fallback.week;
 
-    const existing = await this.picksService.findOneByUserSeasonWeek(
+    const existing = await this.picksService.findOneByUserSeasonWeekSport(
       userId,
       season,
       week,
+      sportKey,
     );
+    const loyAvailable = !(await this.picksService.hasSeasonLoy(
+      userId,
+      season,
+      sportKey,
+    ));
     if (!existing) {
-      return { pick: null, season, week };
+      return { pick: null, loyAvailable, season, week, sportKey };
     }
     return {
       pick: {
@@ -166,33 +211,83 @@ export class PicksController {
         team: existing.team,
         market: existing.market || 'spreads',
         line: existing.line,
+        loy: !!existing.supercharged,
         season: existing.season,
         week: existing.week,
+        sportKey: existing.sportKey,
         status: existing.status,
         lockedAt: existing.lockedAt,
       },
+      loyAvailable,
       season,
       week,
+      sportKey,
     };
   }
 
   @Get('has-picked')
   @UseGuards(JwtAuthGuard)
-  async hasPicked(@Req() req: Request) {
-    const user = req.user as { userId: string; sub: string };
-    const userId = user.userId || user.sub;
+  async hasPicked(
+    @Req() req: Request,
+    @Query('sportKey') sportKeyRaw?: string,
+  ) {
+    const userId = this.requireUserId(req);
+    const sportKey = await this.requireQuerySportAccess(userId, sportKeyRaw);
     const { season, week } = getCurrentSeasonAndWeek();
-    const existing = await this.picksService.findOneByUserSeasonWeek(
+    const existing = await this.picksService.findOneByUserSeasonWeekSport(
       userId,
       season,
       week,
+      sportKey,
     );
-    return { hasPicked: !!existing, season, week };
+    return { hasPicked: !!existing, season, week, sportKey };
   }
 
-  private resolveMarket(
-    dto: CreatePickDto,
-  ): 'spreads' | 'totals' {
+  private requireUserId(req: Request): string {
+    const user = req.user as { userId?: string; sub?: string };
+    const userId = user.userId || user.sub;
+    if (!userId) throw new ConflictException('User not authenticated');
+    return userId;
+  }
+
+  private async requireQuerySportAccess(
+    userId: string,
+    sportKeyRaw?: string,
+  ): Promise<SportKey> {
+    const sportKey = parseSportQuery(sportKeyRaw);
+    if (!sportKey) {
+      throw new BadRequestException('A valid sportKey is required');
+    }
+    await this.assertSportAccess(userId, sportKey);
+    return sportKey;
+  }
+
+  private async requireEventSportAccess(
+    userId: string,
+    eventId: string,
+  ): Promise<SportKey> {
+    const sportKey = await this.oddsService.getSportForEvent(eventId);
+    if (!sportKey) {
+      throw new HttpException(
+        {
+          code: 'UNKNOWN_EVENT',
+          message: 'Could not determine the sport for this game.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.assertSportAccess(userId, sportKey);
+    return sportKey;
+  }
+
+  private async assertSportAccess(userId: string, sportKey: SportKey) {
+    const allowed = await this.usersService.getAllowedSports(userId);
+    if (!allowed.includes(sportKey)) {
+      throw new ForbiddenException('You do not have access to this sport.');
+    }
+  }
+
+  private resolveMarket(dto: CreatePickDto): 'spreads' | 'totals' {
     if (dto.market === 'totals' || dto.market === 'spreads') {
       return dto.market;
     }

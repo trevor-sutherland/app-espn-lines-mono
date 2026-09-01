@@ -1,0 +1,97 @@
+<main class="locksonly-page player-page">
+  <div class="container-xl">
+    <p class="mb-3">
+      <a routerLink="/home" class="player-back">← Home</a>
+    </p>
+
+    @if (loading) {
+      <div class="text-center my-5">
+        <div class="spinner-border" role="status"></div>
+      </div>
+    } @else if (error) {
+      <div class="locksonly-notice locksonly-notice--danger" role="alert">{{ error }}</div>
+    } @else if (profile) {
+      <header class="locksonly-page-header">
+        <h1>{{ profile.displayName }}</h1>
+        <div class="locksonly-week-label">
+          {{ profile.season }} {{ sportLabel }}
+          <span class="week-dot">•</span>
+          {{ profile.points }} pts
+          <span class="week-dot">•</span>
+          {{ profile.record }}
+        </div>
+      </header>
+
+      <section class="player-stat-grid" [class.player-stat-grid--loy]="profile.loyUsed">
+        <div class="player-stat-card">
+          <span class="stat-label">YTD points</span>
+          <span class="stat-value">{{ profile.points }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">Season record</span>
+          <span class="stat-value">{{ profile.record }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">Current streak</span>
+          <span class="stat-value">{{ profile.streak }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">Best win streak</span>
+          <span class="stat-value">{{ profile.bestWinStreak }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">Spreads</span>
+          <span class="stat-value">{{ profile.spreadRecord }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">Totals</span>
+          <span class="stat-value">{{ profile.totalsRecord }}</span>
+        </div>
+        <div class="player-stat-card">
+          <span class="stat-label">LOY</span>
+          <span class="stat-value">
+            @if (profile.loyUsed) {
+              {{ profile.loyRecord }} · Week {{ profile.loyWeek }}
+            } @else {
+              Available
+            }
+          </span>
+        </div>
+      </section>
+
+      <section aria-labelledby="history-heading">
+        <h2 id="history-heading" class="player-history-title">Season pick history</h2>
+        @if (!profile.history.length) {
+          <p class="text-muted">No picks yet this season.</p>
+        } @else {
+          <div class="table-responsive">
+            <table class="table align-middle player-history-table">
+              <thead>
+                <tr>
+                  <th scope="col">Week</th>
+                  <th scope="col">Pick</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (pick of profile.history; track pick.week + pick.label) {
+                  <tr [class.locksonly-loy-row]="pick.loy">
+                    <td>{{ pick.week }}</td>
+                    <td>{{ pick.label }}</td>
+                    <td>
+                      <span class="result-chip" [class]="resultClass(pick.status)">
+                        {{ resultLabel(pick.status) }}
+                      </span>
+                    </td>
+                    <td>{{ pointsLabel(pick.points, pick.status) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  </div>
+</main>

@@ -1,7 +1,5 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
-
+import { Component, ChangeDetectionStrategy, inject, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { inject, OnDestroy } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -15,7 +13,7 @@ import { LoginResponse } from './login-response.interface';
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.scss'
 })
-export class Login implements OnDestroy {
+export class Login implements OnInit, OnDestroy {
   email = '';
   password = '';
   loading = false;
@@ -24,6 +22,12 @@ export class Login implements OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private authSubscription: Subscription | null = null;
+
+  ngOnInit(): void {
+    if (this.auth.isLoggedIn()) {
+      this.router.navigate(['/home']);
+    }
+  }
 
   onSubmit(e: Event) {
     e.preventDefault();
@@ -37,7 +41,7 @@ export class Login implements OnDestroy {
         if (res && res.user && res.user.jwtToken) {
           this.success = 'Login successful!';
           this.loading = false;
-          this.router.navigate(['/pick']);
+          this.router.navigate(['/home']);
         } else {
           this.error = res.message || 'Login failed.';
           this.loading = false;

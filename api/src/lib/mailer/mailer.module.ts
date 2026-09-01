@@ -44,5 +44,6 @@ import { join } from 'path';
       },
     }),
   ],
+  exports: [MailerModule],
 })
 export class AppMailerModule {}
