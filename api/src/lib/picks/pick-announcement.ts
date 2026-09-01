@@ -59,12 +59,6 @@ export function formatPickAnnouncement(
   return `🔒 ${displayName} locked in ${team} ${line} 🏈${loySuffix}`;
 }
 
-/** Unique per player so Yahoo does not collapse every pick into one thread. */
-export function formatPickAnnouncementSubject(displayName: string): string {
-  const name = displayName.trim() || 'pick';
-  return `LOCKSONLY — ${name}`;
-}
-
 /**
  * Compact pick label for scoreboard / activity (no player name wrapper).
  */

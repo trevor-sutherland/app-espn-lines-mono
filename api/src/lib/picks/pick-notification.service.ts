@@ -4,10 +4,11 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/users.schema';
 import { OddsLatest, OddsLatestDocument } from '../odds/odds.schema';
 import { PickDocument } from './picks.schema';
-import { formatPickAnnouncement, formatPickAnnouncementSubject } from './pick-announcement';
+import { formatPickAnnouncement } from './pick-announcement';
 import { PickEmailQueueService } from './pick-email-queue.service';
 
 const PICK_NOTIFY_TO = 'locksonlygame@yahoo.com';
+const PICK_NOTIFY_SUBJECT = 'LOCKSONLY';
 
 @Injectable()
 export class PickNotificationService {
@@ -75,7 +76,7 @@ export class PickNotificationService {
       await this.queue.enqueue({
         pickId: String(pick._id),
         to: PICK_NOTIFY_TO,
-        subject: formatPickAnnouncementSubject(displayName),
+        subject: PICK_NOTIFY_SUBJECT,
         text: body,
       });
       await this.queue.drainDue();
