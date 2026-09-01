@@ -31,6 +31,8 @@ import { join } from 'path';
             port,
             secure: port === 465,
             requireTLS: port === 587,
+            pool: true,
+            maxConnections: 1,
             connectionTimeout: 12_000,
             greetingTimeout: 12_000,
             socketTimeout: 20_000,

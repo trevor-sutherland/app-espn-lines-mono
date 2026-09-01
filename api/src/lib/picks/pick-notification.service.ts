@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { MailerService } from '@nestjs-modules/mailer';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/users.schema';
 import { OddsLatest, OddsLatestDocument } from '../odds/odds.schema';
 import { PickDocument } from './picks.schema';
 import { formatPickAnnouncement } from './pick-announcement';
+import { PickEmailQueueService } from './pick-email-queue.service';
 
 const PICK_NOTIFY_TO = 'locksonlygame@yahoo.com';
 const PICK_NOTIFY_SUBJECT = 'LOCKSONLY';
@@ -15,7 +15,7 @@ export class PickNotificationService {
   private readonly log = new Logger(PickNotificationService.name);
 
   constructor(
-    private readonly mailerService: MailerService,
+    private readonly queue: PickEmailQueueService,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     @InjectModel(OddsLatest.name)
@@ -23,13 +23,10 @@ export class PickNotificationService {
   ) {}
 
   /**
-   * Best-effort notification. Never throws — pick save must not roll back.
+   * Queue a confirmation email. Never throws — pick save must not roll back.
    */
   async notifySavedPick(pick: PickDocument): Promise<void> {
     try {
-      this.log.log(
-        `Sending pick notification for pick ${String(pick._id)} to ${PICK_NOTIFY_TO}`,
-      );
       const user = await this.userModel
         .findById(pick.userId)
         .select('displayName')
@@ -82,20 +79,15 @@ export class PickNotificationService {
         return;
       }
 
-      await this.mailerService.sendMail({
+      await this.queue.enqueue({
+        pickId: pick._id,
         to: PICK_NOTIFY_TO,
         subject: PICK_NOTIFY_SUBJECT,
         text: body,
-        template: 'pick-announcement',
-        context: { body },
-        headers: {
-          'Message-ID': `<pick-${String(pick._id)}@locksonly>`,
-        },
       });
-      this.log.log(`Pick notification sent for pick ${String(pick._id)}`);
     } catch (err) {
       this.log.error(
-        `Failed to send pick notification for pick ${String(pick._id)}`,
+        `Failed to queue pick notification for pick ${String(pick._id)}`,
         err instanceof Error ? err.stack ?? err.message : String(err),
       );
     }

@@ -66,4 +66,5 @@ jobs:
             --project="${PROJECT_ID}" \
             --region="${REGION}" \
             --image="${IMAGE}:${GITHUB_SHA}" \
+            --no-cpu-throttling \
             --quiet

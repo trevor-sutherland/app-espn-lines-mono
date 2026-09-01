@@ -9,6 +9,11 @@ import { OddsModule } from '../odds/odds.module';
 import { UsersModule } from '../users/users.module';
 import { AppMailerModule } from '../mailer/mailer.module';
 import { PickNotificationService } from './pick-notification.service';
+import { PickEmailQueueService } from './pick-email-queue.service';
+import {
+  PickEmailOutbox,
+  PickEmailOutboxSchema,
+} from './pick-email-outbox.schema';
 
 @Module({
   imports: [
@@ -19,10 +24,11 @@ import { PickNotificationService } from './pick-notification.service';
       { name: Pick.name, schema: PickSchema },
       { name: Event.name, schema: EventSchema },
       { name: OddsLatest.name, schema: OddsLatestSchema },
+      { name: PickEmailOutbox.name, schema: PickEmailOutboxSchema },
     ]),
   ],
   controllers: [PicksController],
-  providers: [PicksService, PickNotificationService],
+  providers: [PicksService, PickNotificationService, PickEmailQueueService],
   exports: [PicksService],
 })
 export class PicksModule {}
