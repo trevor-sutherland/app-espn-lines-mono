@@ -4,6 +4,7 @@ import {
   getCurrentSeasonAndWeek,
   getSeasonYear as seasonYearFromClock,
   getWeekBounds,
+  maxWeeksForSport,
 } from '../helpers/season-week';
 
 @Injectable({
@@ -14,19 +15,19 @@ export class DateService {
   private currentWeekEnd!: Date;
   private selectedWeek = 1;
   private sportService = inject(SportService);
-  private sportKey = this.sportService.sportKey();
   currentWeek: WritableSignal<number> = signal(1);
 
   constructor() {
     this.recomputeSeasonAndWeek();
 
     effect(() => {
-      const newKey = this.sportService.sportKey();
-      if (this.sportKey !== newKey) {
-        this.sportKey = newKey;
-        this.recomputeSeasonAndWeek();
-      }
+      this.sportService.sportKey();
+      this.recomputeSeasonAndWeek();
     });
+  }
+
+  private sportKey(): string {
+    return this.sportService.sportKey();
   }
 
   getSelectedWeek(): number {
@@ -47,7 +48,7 @@ export class DateService {
   }
 
   getSportKey(): string {
-    return this.sportKey;
+    return this.sportKey();
   }
 
   setSelectedWeek(week: number): void {
@@ -56,19 +57,19 @@ export class DateService {
   }
 
   getWeekStartDate(week: number, seasonYear = this.getSeasonYear()): Date {
-    return getWeekBounds(seasonYear, week).start;
+    return getWeekBounds(seasonYear, week, this.sportKey()).start;
   }
 
   getWeekEndDate(week: number, seasonYear = this.getSeasonYear()): Date {
-    return getWeekBounds(seasonYear, week).end;
+    return getWeekBounds(seasonYear, week, this.sportKey()).end;
   }
 
   getWeekRangeLabel(week: number, seasonYear = this.getSeasonYear()): string {
-    return getWeekBounds(seasonYear, week).rangeLabel;
+    return getWeekBounds(seasonYear, week, this.sportKey()).rangeLabel;
   }
 
   getPicksOpenAt(week: number, seasonYear = this.getSeasonYear()): Date {
-    return getWeekBounds(seasonYear, week).picksOpenAt;
+    return getWeekBounds(seasonYear, week, this.sportKey()).picksOpenAt;
   }
 
   arePicksOpen(week: number, seasonYear = this.getSeasonYear(), now = new Date()): boolean {
@@ -76,21 +77,11 @@ export class DateService {
   }
 
   recomputeSeasonAndWeek(today: Date = new Date()): void {
-    this.maxWeeks = this.maxWeeksForSport(this.sportKey);
-    const current = getCurrentSeasonAndWeek(today, this.maxWeeks);
+    const sportKey = this.sportKey();
+    this.maxWeeks = maxWeeksForSport(sportKey);
+    const current = getCurrentSeasonAndWeek(today, this.maxWeeks, sportKey);
     this.selectedWeek = current.week;
     this.currentWeek.set(current.week);
     this.currentWeekEnd = current.end;
-  }
-
-  private maxWeeksForSport(sportKey: string): number {
-    const sport = sportKey.toLowerCase();
-    if (sport.includes('ncaaf')) {
-      return 14;
-    }
-    if (sport.includes('nfl')) {
-      return 18;
-    }
-    return 18;
   }
 }

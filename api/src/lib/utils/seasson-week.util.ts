@@ -1,8 +1,13 @@
 /**
- * ESPN-style football weeks in America/Chicago.
- * Week 1 runs from the Saturday 16 days before Labor Day through Labor Day
- * (2026: August 22–September 7). Week 2 is the short Tuesday–Sunday after
- * Labor Day. Week 3+ is Monday–Sunday.
+ * ESPN-style football weeks in America/Chicago. NCAAF and NFL use different maps.
+ *
+ * NCAAF: Week 1 is the Saturday 16 days before Labor Day through Labor Day
+ * (2026: August 22–September 7). Week 2 is Tuesday–Sunday after Labor Day.
+ * Week 3+ is Monday–Sunday.
+ *
+ * NFL: Week 1 Sunday is six days after Labor Day. Weeks run Thursday–Monday,
+ * except week 1 starts Wednesday when Labor Day is September 7 (2026:
+ * September 9–14, then 17–21, 24–28, …).
  */
 
 const TZ = 'America/Chicago';
@@ -114,19 +119,28 @@ export function getSeasonYear(now: Date = new Date()): number {
   return month >= 7 ? year : year - 1;
 }
 
+export function isNflCalendar(sportKey?: string | null): boolean {
+  return (sportKey ?? '').toLowerCase().includes('americanfootball_nfl');
+}
+
+export function maxWeeksForSport(sportKey?: string | null): number {
+  const sport = (sportKey ?? '').toLowerCase();
+  if (sport.includes('ncaaf')) return 14;
+  if (isNflCalendar(sportKey)) return 18;
+  return 18;
+}
+
 function dayUtc(day: CalendarDay): number {
   return Date.UTC(day.year, day.month - 1, day.day);
 }
 
-/** Inclusive calendar span for ESPN-style week N. */
-function weekSpan(
-  seasonYear: number,
-  week: number,
-): {
+type WeekSpan = {
   startDay: CalendarDay;
   endDay: CalendarDay;
   picksOpenDay: CalendarDay;
-} {
+};
+
+function ncaafWeekSpan(seasonYear: number, week: number): WeekSpan {
   const ld = laborDay(seasonYear);
   if (week <= 1) {
     const mainMonday = addCalendarDays(ld, -7);
@@ -152,9 +166,35 @@ function weekSpan(
   };
 }
 
+function nflWeekSpan(seasonYear: number, week: number): WeekSpan {
+  const ld = laborDay(seasonYear);
+  const sunday = addCalendarDays(ld, 6 + 7 * (Math.max(1, week) - 1));
+  const week1StartsWednesday = ld.day === 7;
+  const startOffset = week <= 1 && week1StartsWednesday ? -4 : -3;
+  return {
+    startDay: addCalendarDays(sunday, startOffset),
+    endDay: addCalendarDays(sunday, 1),
+    picksOpenDay: addCalendarDays(sunday, -5),
+  };
+}
+
+function weekSpan(
+  seasonYear: number,
+  week: number,
+  sportKey?: string | null,
+): WeekSpan {
+  return isNflCalendar(sportKey)
+    ? nflWeekSpan(seasonYear, week)
+    : ncaafWeekSpan(seasonYear, week);
+}
+
 /** Start calendar day of ESPN-style week N. */
-export function weekMonday(seasonYear: number, week: number): CalendarDay {
-  return weekSpan(seasonYear, week).startDay;
+export function weekMonday(
+  seasonYear: number,
+  week: number,
+  sportKey?: string | null,
+): CalendarDay {
+  return weekSpan(seasonYear, week, sportKey).startDay;
 }
 
 export function formatWeekRangeLabel(start: CalendarDay, end: CalendarDay): string {
@@ -167,6 +207,7 @@ export function formatWeekRangeLabel(start: CalendarDay, end: CalendarDay): stri
 export function getWeekBounds(
   seasonYear: number,
   week: number,
+  sportKey?: string | null,
 ): {
   start: Date;
   end: Date;
@@ -175,7 +216,7 @@ export function getWeekBounds(
   sunday: CalendarDay;
   rangeLabel: string;
 } {
-  const { startDay, endDay, picksOpenDay } = weekSpan(seasonYear, week);
+  const { startDay, endDay, picksOpenDay } = weekSpan(seasonYear, week, sportKey);
   return {
     monday: startDay,
     sunday: endDay,
@@ -202,6 +243,7 @@ export function computeCurrentWeek(
   seasonYear: number,
   now: Date = new Date(),
   maxWeeks = 18,
+  sportKey?: string | null,
 ): number {
   const today = chicagoParts(now);
   const todayUtc = dayUtc({
@@ -210,7 +252,7 @@ export function computeCurrentWeek(
     day: today.day,
   });
   for (let week = 1; week <= maxWeeks; week++) {
-    if (todayUtc <= dayUtc(weekSpan(seasonYear, week).endDay)) {
+    if (todayUtc <= dayUtc(weekSpan(seasonYear, week, sportKey).endDay)) {
       return week;
     }
   }
@@ -219,11 +261,13 @@ export function computeCurrentWeek(
 
 export function getCurrentSeasonAndWeek(
   now: Date = new Date(),
-  maxWeeks = 18,
+  maxWeeks?: number,
+  sportKey?: string | null,
 ): SeasonWeek {
   const season = getSeasonYear(now);
-  const week = computeCurrentWeek(season, now, maxWeeks);
-  const bounds = getWeekBounds(season, week);
+  const weeks = maxWeeks ?? maxWeeksForSport(sportKey);
+  const week = computeCurrentWeek(season, now, weeks, sportKey);
+  const bounds = getWeekBounds(season, week, sportKey);
   return {
     season,
     week,

@@ -101,12 +101,12 @@ export class ScoreboardService {
   ) {}
 
   async getScoreboard(seasonRaw?: number, sportKey?: SportKey) {
-    const current = getCurrentSeasonAndWeek();
-    const season = Number.isFinite(seasonRaw) ? Number(seasonRaw) : current.season;
-    const week = current.week;
     if (!sportKey) {
       throw new NotFoundException('A valid sport is required');
     }
+    const current = getCurrentSeasonAndWeek(new Date(), undefined, sportKey);
+    const season = Number.isFinite(seasonRaw) ? Number(seasonRaw) : current.season;
+    const week = current.week;
 
     const [users, picks] = await Promise.all([
       this.userModel
@@ -281,11 +281,11 @@ export class ScoreboardService {
   }
 
   async getPlayer(userId: string, seasonRaw?: number, sportKey?: SportKey) {
-    const current = getCurrentSeasonAndWeek();
-    const season = Number.isFinite(seasonRaw) ? Number(seasonRaw) : current.season;
     if (!sportKey) {
       throw new NotFoundException('A valid sport is required');
     }
+    const current = getCurrentSeasonAndWeek(new Date(), undefined, sportKey);
+    const season = Number.isFinite(seasonRaw) ? Number(seasonRaw) : current.season;
     const user = await this.userModel
       .findById(userId)
       .select('displayName approved active')

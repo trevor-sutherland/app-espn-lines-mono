@@ -55,7 +55,11 @@ export class PicksController {
     const user = req.user as { userId?: string; sub?: string };
     const userId = user.userId || user.sub;
     if (!userId) throw new ConflictException('User not authenticated');
-    const current = getCurrentSeasonAndWeek();
+    const sportKey = await this.requireEventSportAccess(
+      userId,
+      createPickDto.eventId,
+    );
+    const current = getCurrentSeasonAndWeek(new Date(), undefined, sportKey);
     if (!current.picksOpen) {
       throw new ForbiddenException(
         `Picks open Tuesday at 12:00 AM Central. This week is ${current.rangeLabel}.`,
@@ -63,10 +67,6 @@ export class PicksController {
     }
     const season = current.season;
     const week = current.week;
-    const sportKey = await this.requireEventSportAccess(
-      userId,
-      createPickDto.eventId,
-    );
 
     const existing = await this.picksService.findOneByUserSeasonWeekSport(
       userId,
@@ -191,7 +191,7 @@ export class PicksController {
     const userId = this.requireUserId(req);
     const sportKey = await this.requireQuerySportAccess(userId, sportKeyRaw);
 
-    const fallback = getCurrentSeasonAndWeek();
+    const fallback = getCurrentSeasonAndWeek(new Date(), undefined, sportKey);
     const season = seasonRaw ? Number(seasonRaw) : fallback.season;
     const week = weekRaw ? Number(weekRaw) : fallback.week;
 
@@ -237,7 +237,11 @@ export class PicksController {
   ) {
     const userId = this.requireUserId(req);
     const sportKey = await this.requireQuerySportAccess(userId, sportKeyRaw);
-    const { season, week } = getCurrentSeasonAndWeek();
+    const { season, week } = getCurrentSeasonAndWeek(
+      new Date(),
+      undefined,
+      sportKey,
+    );
     const existing = await this.picksService.findOneByUserSeasonWeekSport(
       userId,
       season,
