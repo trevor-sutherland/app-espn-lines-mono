@@ -99,12 +99,42 @@ export class PicksService implements OnModuleInit {
   }
 
   async getAllPicksWithUser() {
-    return this.PickModel.find()
+    const picks = await this.PickModel.find()
       .populate('userId', 'displayName')
       .select(
-        'userId team market line season week sportKey status margin supercharged createdAt',
+        'userId eventId team market line season week sportKey status margin supercharged createdAt',
       )
-      .lean();
+      .lean()
+      .exec();
+    const matchups = await this.loadMatchups(picks.map((pick) => pick.eventId));
+    return picks.map((pick) => {
+      const matchup = matchups.get(pick.eventId);
+      return {
+        ...pick,
+        awayTeam: matchup?.awayTeam || null,
+        homeTeam: matchup?.homeTeam || null,
+      };
+    });
+  }
+
+  private async loadMatchups(
+    eventIds: string[],
+  ): Promise<Map<string, { awayTeam: string; homeTeam: string }>> {
+    const ids = [...new Set(eventIds.filter(Boolean))];
+    const map = new Map<string, { awayTeam: string; homeTeam: string }>();
+    if (!ids.length) return map;
+    const rows = await this.oddsModel
+      .find({ eventId: { $in: ids }, market: 'spreads' })
+      .select('eventId selection team')
+      .lean()
+      .exec();
+    for (const row of rows) {
+      const current = map.get(row.eventId) ?? { awayTeam: '', homeTeam: '' };
+      if (row.selection === 'away' && row.team) current.awayTeam = row.team;
+      if (row.selection === 'home' && row.team) current.homeTeam = row.team;
+      map.set(row.eventId, current);
+    }
+    return map;
   }
 
   async undoPick(pickId: string, adminUserId: string) {

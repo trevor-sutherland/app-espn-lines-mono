@@ -33,9 +33,16 @@ export function formatPickLabel(
   team: string,
   line: number | null | undefined,
   market?: string | null,
+  matchup?: { awayTeam?: string | null; homeTeam?: string | null },
 ): string {
   const resolved = resolvePickMarket(market, team);
   if (resolved === 'totals') {
+    const away = matchup?.awayTeam?.trim();
+    const home = matchup?.homeTeam?.trim();
+    if (away && home) {
+      const side = team.trim().toLowerCase() === 'under' ? 'u' : 'o';
+      return `${away}/${home} ${side}${formatTotalPoint(line)}`;
+    }
     const side = team.trim().toLowerCase() === 'under' ? 'Under' : 'Over';
     return `${side} ${formatTotalPoint(line)}`;
   }

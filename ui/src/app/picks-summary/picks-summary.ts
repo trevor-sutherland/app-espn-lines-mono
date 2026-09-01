@@ -74,7 +74,10 @@ export class PicksSummary implements OnInit {
   }
 
   pickLabel(pick: IPickSummary): string {
-    return formatPickLabel(pick.team, pick.line, pick.market);
+    return formatPickLabel(pick.team, pick.line, pick.market, {
+      awayTeam: pick.awayTeam,
+      homeTeam: pick.homeTeam,
+    });
   }
 
   playerName(pick: IPickSummary): string {
