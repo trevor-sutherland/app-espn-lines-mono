@@ -140,6 +140,8 @@ export class PickEmailQueueService implements OnModuleInit {
         to: job.to,
         subject: job.subject,
         text: job.text,
+        template: 'pick-announcement',
+        context: { body: job.text },
       });
       const accepted = Array.isArray(info?.accepted)
         ? info.accepted.map(String).join(',')
