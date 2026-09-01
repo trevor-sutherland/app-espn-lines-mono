@@ -80,7 +80,7 @@ export class PickNotificationService {
       }
 
       await this.queue.enqueue({
-        pickId: pick._id,
+        pickId: String(pick._id),
         to: PICK_NOTIFY_TO,
         subject: PICK_NOTIFY_SUBJECT,
         text: body,
