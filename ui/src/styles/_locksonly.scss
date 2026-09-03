@@ -1789,3 +1789,27 @@ body.locksonly-body {
     max-width: 240px;
     object-position: center;
 }
+
+body.summary-print-open app-nav {
+    display: none !important;
+}
+
+@media print {
+    app-nav,
+    .no-print,
+    .modal,
+    .modal-backdrop {
+        display: none !important;
+    }
+
+    body.summary-print-open {
+        background: #fff !important;
+    }
+
+    .summary-print-sheet {
+        position: static !important;
+        inset: auto !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+}

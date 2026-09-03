@@ -19,6 +19,104 @@ const SUBJECT = 'LOCKSONLY';
 /** Minimum consecutive graded losses to earn "Fade Watch". */
 const FADE_WATCH_STREAK = 3;
 
+/** Longest mascot phrases first so "Yellow Jackets" beats "Jackets". */
+const MASCOT_SUFFIXES = [
+  'Yellow Jackets',
+  'Scarlet Knights',
+  'Fighting Irish',
+  'Rainbow Warriors',
+  'Thundering Herd',
+  'Golden Gophers',
+  'Golden Eagles',
+  'Golden Bears',
+  'Blue Devils',
+  'Red Raiders',
+  'Demon Deacons',
+  'Horned Frogs',
+  'Nittany Lions',
+  'Crimson Tide',
+  'Tar Heels',
+  'Blue Raiders',
+  'Mean Green',
+  'Seminoles',
+  'Jayhawks',
+  'Wildcats',
+  'Bulldogs',
+  'Tigers',
+  'Rebels',
+  'Broncos',
+  'Ducks',
+  'Dukes',
+  'Bearcats',
+  'Mustangs',
+  'Cowboys',
+  'Bruins',
+  'Trojans',
+  'Huskies',
+  'Cougars',
+  'Spartans',
+  'Wolverines',
+  'Buckeyes',
+  'Sooners',
+  'Longhorns',
+  'Aggies',
+  'Razorbacks',
+  'Volunteers',
+  'Gamecocks',
+  'Mountaineers',
+  'Panthers',
+  'Cardinals',
+  'Knights',
+  'Pirates',
+  'Owls',
+  'Hawks',
+  'Eagles',
+  'Falcons',
+  'Lions',
+  'Bears',
+  'Rams',
+  'Bulls',
+  'Miners',
+  'Lobos',
+  'Aztecs',
+  'Wolfpack',
+  'Sun Devils',
+  'Utes',
+  'Buffaloes',
+  'Cyclones',
+  'Hoosiers',
+  'Boilermakers',
+  'Hawkeyes',
+  'Badgers',
+  'Cornhuskers',
+  'Commodores',
+  'Hokies',
+  'Cavaliers',
+  'Terrapins',
+  'Orange',
+  'Gators',
+  'Sooners',
+  'Illini',
+  'Midshipmen',
+  'Black Knights',
+  'Green Wave',
+  'Ragin Cajuns',
+  "Ragin' Cajuns",
+];
+
+function shortTeamName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  for (const suffix of MASCOT_SUFFIXES) {
+    const tail = ` ${suffix.toLowerCase()}`;
+    if (lower.endsWith(tail)) {
+      return trimmed.slice(0, trimmed.length - suffix.length - 1).trim();
+    }
+  }
+  return trimmed;
+}
+
 /** Slot labels used in the dedup pickId. */
 export type SummarySlot = 'thu-3pm' | 'fri-8pm' | 'sat-11am';
 
@@ -49,9 +147,13 @@ export class SummaryEmailService {
 
   /**
    * Build and send a snapshot for the current NCAAF week.
-   * Deduplicates per season/week/slot so it sends at most once.
+   * Deduplicates per season/week/slot so scheduled sends fire at most once.
+   * Pass `{ force: true }` from the admin button to resend the same slot.
    */
-  async sendSnapshot(slot: SummarySlot): Promise<void> {
+  async sendSnapshot(
+    slot: SummarySlot,
+    options?: { force?: boolean },
+  ): Promise<void> {
     const { season, week } = getCurrentSeasonAndWeek(
       new Date(),
       undefined,
@@ -67,12 +169,15 @@ export class SummaryEmailService {
     }
 
     const allPicks = await this.loadSeasonPicks(season);
-    const text = this.buildBody(picks, allPicks, season, week, slot);
+    const text = this.buildBody(picks, allPicks, week);
 
     // Stable synthetic ObjectId: hash season+week+slot into deterministic bytes
     const pickId = this.slotPickId(season, week, slot);
 
     try {
+      if (options?.force) {
+        await this.queue.reset(pickId);
+      }
       await this.queue.enqueue({ pickId, to: TO, subject: SUBJECT, text });
       await this.queue.drainDue();
       this.log.log(`Summary email queued for slot ${slot} S${season} W${week}`);
@@ -180,33 +285,20 @@ export class SummaryEmailService {
   private buildBody(
     picks: PickRow[],
     allPicks: Array<{ displayName: string; statuses: string[] }>,
-    season: number,
     week: number,
-    slot: SummarySlot,
   ): string {
-    const slotLabel = this.slotLabel(slot);
-    const lines: string[] = [];
+    const parts: string[] = [
+      'LOCKS ONLY',
+      `NCAAF WEEK ${week}`,
+    ];
 
-    lines.push(`LOCKSONLY PICK SNAPSHOT`);
-    lines.push(`NCAAF  Season ${season}  Week ${week}  |  ${slotLabel}`);
-    lines.push('');
-
-    // ── Highlights ─────────────────────────────────────────────────────────
     const highlights = this.buildHighlights(picks, allPicks);
     if (highlights.length) {
-      lines.push('Highlights');
-      for (const h of highlights) lines.push(`  ${h}`);
-      lines.push('');
+      parts.push('', 'HIGHLIGHTS:', '', highlights.join('\n\n'));
     }
 
-    // ── Pick table ─────────────────────────────────────────────────────────
-    lines.push(this.buildTable(picks));
-    lines.push('');
-
-    // ── Reminder ───────────────────────────────────────────────────────────
-    lines.push(this.reminderLine(picks.length));
-
-    return lines.join('\n');
+    parts.push('', 'PICKS:', this.buildPickList(picks), '', this.reminderLine(picks.length));
+    return parts.join('\n');
   }
 
   private buildHighlights(
@@ -228,7 +320,7 @@ export class SummaryEmailService {
       )[0];
       if (topCount >= 2) {
         out.push(
-          `${topTeam} is the crowd favorite — ${topCount} locks already. Everyone is a believer.`,
+          `${shortTeamName(topTeam)} is the crowd favorite - ${topCount} locks already. Everyone is a believer.`,
         );
       }
     }
@@ -240,17 +332,13 @@ export class SummaryEmailService {
         const picker = picks.find(
           (p) => p.team === team && p.market === 'spreads',
         )?.displayName;
-        if (picker) loneWolves.push(`${picker} on ${team}`);
+        if (picker) loneWolves.push(picker);
       }
     }
     if (loneWolves.length === 1) {
-      out.push(
-        `${loneWolves[0]} — the lone wolf. Bold move or genius? We find out soon.`,
-      );
+      out.push(`${loneWolves[0]} is the lone wolf this week.`);
     } else if (loneWolves.length >= 2) {
-      out.push(
-        `Multiple lone wolves this week: ${loneWolves.join(', ')}. No consensus in sight.`,
-      );
+      out.push(`Multiple lone wolves this week: ${loneWolves.join(', ')}`);
     }
 
     // Fade Watch: players with FADE_WATCH_STREAK+ consecutive losses in season
@@ -278,52 +366,32 @@ export class SummaryEmailService {
     return out.slice(0, 3);
   }
 
-  private buildTable(picks: PickRow[]): string {
-    const NAME_W = 14;
-    const PICK_W = 36;
-
-    const pad = (s: string, w: number) => s.slice(0, w).padEnd(w);
-    const divider = `${'-'.repeat(NAME_W)}  ${'-'.repeat(PICK_W)}`;
-
-    const rows = [
-      `${pad('Player', NAME_W)}  ${pad('Pick', PICK_W)}`,
-      divider,
-    ];
-
-    // Sort alphabetically by display name for stable output
+  /** One pick per line so iMessage / Mail automations keep the breaks. */
+  private buildPickList(picks: PickRow[]): string {
     const sorted = [...picks].sort((a, b) =>
       a.displayName.localeCompare(b.displayName),
     );
-
-    for (const p of sorted) {
-      const label = this.pickLabel(p);
-      const loy = p.loy ? ' 🔥LOY' : '';
-      rows.push(`${pad(p.displayName, NAME_W)}  ${pad(label + loy, PICK_W)}`);
-    }
-
-    return rows.join('\n');
+    return sorted
+      .map((p) => {
+        const loy = p.loy ? ' LOY🔥' : '';
+        return `${p.displayName}: ${this.pickLabel(p)}${loy}`;
+      })
+      .join('\n');
   }
 
   private pickLabel(p: PickRow): string {
     if (p.market === 'totals') {
       const side = p.team.toLowerCase() === 'under' ? 'u' : 'o';
       const total = formatAnnouncementTotal(p.line);
-      const away = p.awayTeam?.trim() ?? '';
-      const home = p.homeTeam?.trim() ?? '';
-      const matchup =
-        away && home ? `${away}/${home}` : '';
-      return matchup ? `${matchup} ${side}${total}` : `${side === 'u' ? 'Under' : 'Over'} ${total}`;
+      const away = shortTeamName(p.awayTeam?.trim() ?? '');
+      const home = shortTeamName(p.homeTeam?.trim() ?? '');
+      const matchup = away && home ? `${away}/${home}` : '';
+      return matchup
+        ? `${matchup} ${side}${total}`
+        : `${side === 'u' ? 'Under' : 'Over'} ${total}`;
     }
     const line = formatAnnouncementLine(p.line);
-    return `${p.team} ${line}`.trim();
-  }
-
-  private slotLabel(slot: SummarySlot): string {
-    switch (slot) {
-      case 'thu-3pm': return 'Thursday 3:00 PM CT';
-      case 'fri-8pm': return 'Friday 8:00 PM CT';
-      case 'sat-11am': return 'Saturday 11:00 AM CT';
-    }
+    return `${shortTeamName(p.team)} ${line}`.trim();
   }
 
   private reminderLine(pickCount: number): string {

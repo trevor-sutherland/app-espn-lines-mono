@@ -56,7 +56,7 @@ export class PicksController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async testSummaryEmail(): Promise<{ queued: boolean }> {
-    await this.summaryEmail.sendSnapshot('thu-3pm');
+    await this.summaryEmail.sendSnapshot('thu-3pm', { force: true });
     return { queued: true };
   }
 

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy, effect } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IPickSummary } from './picks-summary.model';
 import { DateService } from '../services/date.service';
@@ -16,7 +16,7 @@ import { SPORT_OPTIONS } from '../enums/sports.enum';
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./picks-summary.scss'],
 })
-export class PicksSummary implements OnInit {
+export class PicksSummary implements OnInit, OnDestroy {
   picks: IPickSummary[] = [];
   filteredPicks: IPickSummary[] = [];
   /** Bound as string so native <select> options work reliably. */
@@ -35,8 +35,7 @@ export class PicksSummary implements OnInit {
   undoing = false;
   undoError: string | null = null;
 
-  sendingSummary = false;
-  summaryResult: 'sent' | 'error' | null = null;
+  printOpen = false;
 
   constructor() {
     this.applyCurrentSeasonAndWeek();
@@ -125,20 +124,28 @@ export class PicksSummary implements OnInit {
     });
   }
 
-  sendSummary(): void {
-    if (this.sendingSummary) return;
-    this.sendingSummary = true;
-    this.summaryResult = null;
-    this.picksService.sendSummaryEmail().subscribe({
-      next: () => {
-        this.summaryResult = 'sent';
-        this.sendingSummary = false;
-      },
-      error: () => {
-        this.summaryResult = 'error';
-        this.sendingSummary = false;
-      },
-    });
+  openPrint(): void {
+    this.printOpen = true;
+    document.body.classList.add('summary-print-open');
+  }
+
+  closePrint(): void {
+    this.printOpen = false;
+    document.body.classList.remove('summary-print-open');
+  }
+
+  printSheet(): void {
+    window.print();
+  }
+
+  ngOnDestroy(): void {
+    document.body.classList.remove('summary-print-open');
+  }
+
+  printedPicks(): IPickSummary[] {
+    return [...this.filteredPicks].sort((a, b) =>
+      this.playerName(a).localeCompare(this.playerName(b)),
+    );
   }
 
   applyFilters() {

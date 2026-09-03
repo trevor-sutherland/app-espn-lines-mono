@@ -5,24 +5,10 @@
     <p class="text-center text-muted mb-3">
       Undo a pick to reopen that sport and week so the player can submit again.
     </p>
-    <div class="text-center mb-3 d-flex align-items-center justify-content-center gap-2">
-      <button
-        type="button"
-        class="btn btn-outline-primary btn-sm"
-        (click)="sendSummary()"
-        [disabled]="sendingSummary"
-      >
-        @if (sendingSummary) {
-          <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
-        }
-        Send Summary
+    <div class="text-center mb-3">
+      <button type="button" class="btn btn-outline-primary btn-sm" (click)="openPrint()">
+        Print Summary
       </button>
-      @if (summaryResult === 'sent') {
-        <span class="text-success small">✓ Summary email queued!</span>
-      }
-      @if (summaryResult === 'error') {
-        <span class="text-danger small">Failed to send — check API logs.</span>
-      }
     </div>
   }
 
@@ -168,6 +154,48 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+}
+
+@if (printOpen) {
+  <div class="summary-print-sheet" role="dialog" aria-modal="true" aria-labelledby="summary-print-title">
+    <div class="summary-print-toolbar no-print">
+      <button type="button" class="btn btn-primary btn-sm" (click)="printSheet()">
+        Print / Save PDF
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closePrint()">
+        Done
+      </button>
+    </div>
+    <div class="summary-print-card">
+      <h1 id="summary-print-title">LOCKS ONLY</h1>
+      <p class="summary-print-meta">{{ sportLabel }} · Week {{ selectedWeek }}</p>
+      @if (printedPicks().length === 0) {
+        <p class="summary-print-empty">No picks submitted this week.</p>
+      } @else {
+        <table class="summary-print-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Pick</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pick of printedPicks(); track pick._id) {
+              <tr>
+                <td>{{ playerName(pick) }}</td>
+                <td>
+                  <span>{{ pickLabel(pick) }}</span>
+                  @if (pick.supercharged) {
+                    <span class="locksonly-loy-badge">LOY</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
     </div>
   </div>
 }

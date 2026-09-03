@@ -11,7 +11,6 @@ import { AppMailerModule } from '../mailer/mailer.module';
 import { PickNotificationService } from './pick-notification.service';
 import { PickEmailQueueService } from './pick-email-queue.service';
 import { SummaryEmailService } from './summary-email.service';
-import { SummaryEmailScheduler } from './summary-email.scheduler';
 import {
   PickEmailOutbox,
   PickEmailOutboxSchema,
@@ -37,7 +36,6 @@ import { User, UserSchema } from '../users/users.schema';
     PickNotificationService,
     PickEmailQueueService,
     SummaryEmailService,
-    SummaryEmailScheduler,
   ],
   exports: [PicksService],
 })

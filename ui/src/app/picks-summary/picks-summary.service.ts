@@ -24,12 +24,4 @@ export class PicksSummaryService {
       { headers: this.auth.authHeaders() },
     );
   }
-
-  sendSummaryEmail(): Observable<{ queued: boolean }> {
-    return this.http.post<{ queued: boolean }>(
-      `${environment.apiBaseUrl}/picks/summary-email/test`,
-      {},
-      { headers: this.auth.authHeaders() },
-    );
-  }
 }
