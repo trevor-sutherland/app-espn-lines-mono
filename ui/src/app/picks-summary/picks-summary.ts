@@ -35,6 +35,9 @@ export class PicksSummary implements OnInit {
   undoing = false;
   undoError: string | null = null;
 
+  sendingSummary = false;
+  summaryResult: 'sent' | 'error' | null = null;
+
   constructor() {
     this.applyCurrentSeasonAndWeek();
     effect(() => {
@@ -118,6 +121,22 @@ export class PicksSummary implements OnInit {
       error: (err) => {
         this.undoError = err.error?.message || 'Could not undo this pick.';
         this.undoing = false;
+      },
+    });
+  }
+
+  sendSummary(): void {
+    if (this.sendingSummary) return;
+    this.sendingSummary = true;
+    this.summaryResult = null;
+    this.picksService.sendSummaryEmail().subscribe({
+      next: () => {
+        this.summaryResult = 'sent';
+        this.sendingSummary = false;
+      },
+      error: () => {
+        this.summaryResult = 'error';
+        this.sendingSummary = false;
       },
     });
   }

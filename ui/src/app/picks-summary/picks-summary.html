@@ -5,6 +5,25 @@
     <p class="text-center text-muted mb-3">
       Undo a pick to reopen that sport and week so the player can submit again.
     </p>
+    <div class="text-center mb-3 d-flex align-items-center justify-content-center gap-2">
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm"
+        (click)="sendSummary()"
+        [disabled]="sendingSummary"
+      >
+        @if (sendingSummary) {
+          <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+        }
+        Send Summary
+      </button>
+      @if (summaryResult === 'sent') {
+        <span class="text-success small">✓ Summary email queued!</span>
+      }
+      @if (summaryResult === 'error') {
+        <span class="text-danger small">Failed to send — check API logs.</span>
+      }
+    </div>
   }
 
   <div class="row g-3 mb-3">
