@@ -38,35 +38,67 @@
   background: #fff;
   color: #111;
   overflow: auto;
-  padding: 1rem 1rem 2rem;
+  padding: 0 0 2rem;
 }
 
 .summary-print-toolbar {
   display: flex;
   justify-content: center;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  padding: 1rem 1rem 0.75rem;
 }
 
 .summary-print-card {
   max-width: 40rem;
   margin: 0 auto;
+  padding: 0 1rem;
   background: #fff;
 }
 
-.summary-print-card h1 {
-  margin: 0;
+.summary-print-ribbon {
+  margin: 0 0 1.15rem;
+  padding: 1.1rem 1rem 1.15rem;
   text-align: center;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  color: #fff;
+  background: linear-gradient(115deg, #041323 0%, #06192f 60%, #071d35 100%);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.summary-print-logo {
+  display: block;
+  height: 56px;
+  width: auto;
+  max-width: 260px;
+  margin: 0 auto 0.55rem;
+  object-fit: contain;
 }
 
 .summary-print-meta {
-  margin: 0.25rem 0 1rem;
-  text-align: center;
+  margin: 0;
   font-weight: 600;
-  color: #333;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.summary-print-top-pick {
+  margin: 0.45rem 0 0;
+  font-weight: 700;
+  color: #fff;
+}
+
+.summary-print-top-label {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #06192f;
+  background: #29c817;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .summary-print-empty {

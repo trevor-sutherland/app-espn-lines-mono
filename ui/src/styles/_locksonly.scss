@@ -1814,4 +1814,10 @@ body.summary-print-open app-nav {
         overflow: visible !important;
         background: #fff !important;
     }
+
+    .summary-print-ribbon,
+    .summary-print-top-label {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }

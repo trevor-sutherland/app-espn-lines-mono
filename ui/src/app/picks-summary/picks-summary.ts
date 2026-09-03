@@ -148,6 +148,33 @@ export class PicksSummary implements OnInit, OnDestroy {
     );
   }
 
+  /** Most-picked spread team (or totals label) among the current filtered week. */
+  topPickLine(): string | null {
+    const picks = this.filteredPicks;
+    if (!picks.length) return null;
+
+    const counts = new Map<string, { count: number; sample: IPickSummary }>();
+    for (const pick of picks) {
+      const key =
+        pick.market === 'totals' ? this.pickLabel(pick) : pick.team.trim();
+      const current = counts.get(key);
+      if (current) {
+        current.count += 1;
+      } else {
+        counts.set(key, { count: 1, sample: pick });
+      }
+    }
+
+    const leader = [...counts.values()].sort(
+      (a, b) => b.count - a.count || this.pickLabel(a.sample).localeCompare(this.pickLabel(b.sample)),
+    )[0];
+    if (!leader) return null;
+
+    const label = this.pickLabel(leader.sample);
+    const lockWord = leader.count === 1 ? 'lock' : 'locks';
+    return `${label} · ${leader.count} ${lockWord}`;
+  }
+
   applyFilters() {
     const seasonNum = Number(this.selectedSeason);
     const weekNum = Number(this.selectedWeek);

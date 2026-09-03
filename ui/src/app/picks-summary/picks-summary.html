@@ -168,9 +168,21 @@
         Done
       </button>
     </div>
-    <div class="summary-print-card">
-      <h1 id="summary-print-title">LOCKS ONLY</h1>
+    <header class="summary-print-ribbon" id="summary-print-title">
+      <img
+        src="/assets/locksonly-logo.png"
+        alt="LocksOnly"
+        class="summary-print-logo"
+      />
       <p class="summary-print-meta">{{ sportLabel }} · Week {{ selectedWeek }}</p>
+      @if (topPickLine()) {
+        <p class="summary-print-top-pick">
+          <span class="summary-print-top-label">Top pick</span>
+          {{ topPickLine() }}
+        </p>
+      }
+    </header>
+    <div class="summary-print-card">
       @if (printedPicks().length === 0) {
         <p class="summary-print-empty">No picks submitted this week.</p>
       } @else {
