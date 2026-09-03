@@ -10,7 +10,6 @@ import { UsersModule } from '../users/users.module';
 import { AppMailerModule } from '../mailer/mailer.module';
 import { PickNotificationService } from './pick-notification.service';
 import { PickEmailQueueService } from './pick-email-queue.service';
-import { SummaryEmailService } from './summary-email.service';
 import {
   PickEmailOutbox,
   PickEmailOutboxSchema,
@@ -35,7 +34,6 @@ import { User, UserSchema } from '../users/users.schema';
     PicksService,
     PickNotificationService,
     PickEmailQueueService,
-    SummaryEmailService,
   ],
   exports: [PicksService],
 })

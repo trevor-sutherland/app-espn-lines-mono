@@ -23,7 +23,6 @@ import { CreatePickDto } from './dto/create-pick.dto';
 import { OddsService } from '../odds/odds.service';
 import { UsersService } from '../users/users.service';
 import { PickNotificationService } from './pick-notification.service';
-import { SummaryEmailService } from './summary-email.service';
 import type { Request } from 'express';
 import { getCurrentSeasonAndWeek } from '../utils/seasson-week.util';
 import { parseSportQuery, type SportKey } from '../utils/sports';
@@ -48,17 +47,7 @@ export class PicksController {
     private readonly oddsService: OddsService,
     private readonly usersService: UsersService,
     private readonly pickNotifications: PickNotificationService,
-    private readonly summaryEmail: SummaryEmailService,
   ) {}
-
-  /** Admin-only: force a manual test of the scheduled summary email. */
-  @Post('summary-email/test')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  async testSummaryEmail(): Promise<{ queued: boolean }> {
-    await this.summaryEmail.sendSnapshot('thu-3pm', { force: true });
-    return { queued: true };
-  }
 
   @Post()
   @UseGuards(JwtAuthGuard)

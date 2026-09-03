@@ -1,4 +1,4 @@
-<main class="locksonly-page">
+<main class="locksonly-page no-print">
 <div class="container-xl">
   <h2 class="mb-4 text-center">{{ sportLabel }} Picks by Week</h2>
   @if (auth.isAdmin()) {
@@ -100,8 +100,8 @@
 </main>
 
 @if (undoTarget) {
-  <div class="modal-backdrop fade show"></div>
-  <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="undo-pick-title">
+  <div class="modal-backdrop fade show no-print"></div>
+  <div class="modal d-block no-print" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="undo-pick-title">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">

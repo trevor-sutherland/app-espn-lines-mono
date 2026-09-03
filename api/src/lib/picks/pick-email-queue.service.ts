@@ -7,8 +7,6 @@ import {
   PickEmailOutbox,
   PickEmailOutboxDocument,
 } from './pick-email-outbox.schema';
-import { isSummaryEmail, renderSummaryPng } from './summary-image';
-
 /** Send as soon as the pick is queued so Cloud Run cannot scale to zero first. */
 const DEFAULT_DELAY_MS = 0;
 const STALE_SENDING_MS = 2 * 60 * 1000;
@@ -75,13 +73,6 @@ export class PickEmailQueueService implements OnModuleInit {
     }
   }
 
-  /** Drop an outbox row so a manual test can send the same slot again. */
-  async reset(pickId: Types.ObjectId | string): Promise<void> {
-    await this.outboxModel.deleteOne({
-      pickId: new Types.ObjectId(String(pickId)),
-    });
-  }
-
   @Interval(15_000)
   async tick(): Promise<void> {
     await this.drainDue();
@@ -144,7 +135,13 @@ export class PickEmailQueueService implements OnModuleInit {
   private async sendClaimed(job: PickEmailOutboxDocument): Promise<void> {
     const pickId = String(job.pickId);
     try {
-      const info = await this.mailerService.sendMail(this.buildMail(job));
+      const info = await this.mailerService.sendMail({
+        to: job.to,
+        subject: job.subject,
+        text: job.text,
+        template: 'pick-announcement',
+        context: { body: job.text },
+      });
       const accepted = Array.isArray(info?.accepted)
         ? info.accepted.map(String).join(',')
         : '';
@@ -196,38 +193,6 @@ export class PickEmailQueueService implements OnModuleInit {
       }
       await job.save();
     }
-  }
-
-  private buildMail(job: PickEmailOutboxDocument) {
-    if (!isSummaryEmail(job.text)) {
-      return {
-        to: job.to,
-        subject: job.subject,
-        text: job.text,
-        template: 'pick-announcement',
-        context: { body: job.text },
-      };
-    }
-
-    const png = renderSummaryPng(job.text);
-    return {
-      to: job.to,
-      subject: job.subject,
-      html: '<img src="cid:locksonly-snapshot" alt="LOCKS ONLY weekly snapshot" />',
-      attachments: [
-        {
-          filename: 'LOCKSONLY.png',
-          content: png,
-          contentType: 'image/png',
-          cid: 'locksonly-snapshot',
-        },
-        {
-          filename: 'LOCKSONLY-picks.png',
-          content: png,
-          contentType: 'image/png',
-        },
-      ],
-    };
   }
 }
 

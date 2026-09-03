@@ -1797,6 +1797,7 @@ body.summary-print-open app-nav {
 @media print {
     app-nav,
     .no-print,
+    .locksonly-page,
     .modal,
     .modal-backdrop {
         display: none !important;
@@ -1806,10 +1807,11 @@ body.summary-print-open app-nav {
         background: #fff !important;
     }
 
-    .summary-print-sheet {
+    body.summary-print-open .summary-print-sheet {
         position: static !important;
         inset: auto !important;
         padding: 0 !important;
         overflow: visible !important;
+        background: #fff !important;
     }
 }
