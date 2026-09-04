@@ -4,7 +4,8 @@ import { Model } from 'mongoose';
 import { OddsLatest, OddsLatestDocument } from './odds.schema';
 import axios, { AxiosInstance } from 'axios';
 import { NormalizedOddsRow, OddsApiUsage, OddsApiEvent } from './models/odds.model';
-import { isSportKey, type SportKey } from '../utils/sports';
+import { isSportKey, sportsToRefresh, type SportKey } from '../utils/sports';
+import { OddsUsageService } from './odds-usage.service';
 
 @Injectable()
 export class OddsService {
@@ -18,6 +19,7 @@ export class OddsService {
   constructor(
     @InjectModel(OddsLatest.name)
     private readonly oddsModel: Model<OddsLatestDocument>,
+    private readonly usageTracker: OddsUsageService,
   ) {
     this.apiKey = process.env.ODDS_API_KEY || '';
     if (!this.apiKey) {
@@ -35,6 +37,31 @@ export class OddsService {
       timeout: 10_000,
       headers: { 'User-Agent': 'mongo-espn-line-app/1.0 (NestJS)' },
     });
+    this.http.interceptors.response.use(
+      (res) => {
+        void this.usageTracker.recordFromHeaders(
+          res.headers,
+          String(res.config.url ?? '/odds'),
+          false,
+        );
+        return res;
+      },
+      (err: unknown) => {
+        if (typeof err === 'object' && err && 'response' in err) {
+          const res = (
+            err as {
+              response?: { headers?: unknown; config?: { url?: string } };
+            }
+          ).response;
+          void this.usageTracker.recordFromHeaders(
+            res?.headers,
+            String(res?.config?.url ?? '/odds'),
+            this.isQuotaExceeded(err),
+          );
+        }
+        return Promise.reject(err);
+      },
+    );
   }
 
   async fetchSportMainlines(
@@ -179,6 +206,9 @@ export class OddsService {
         { params: { ...params, apiKey: this.apiKey } },
       );
       const usage = this.extractUsage(headers as Record<string, unknown>);
+      this.log.log(
+        `Odds API ${sportKey} used=${usage.used ?? '?'} remaining=${usage.remaining ?? '?'} cost=${usage.lastRequestCost ?? '?'}`,
+      );
       return { events: data ?? [], usage };
     } catch (err: unknown) {
       if (typeof err === 'object' && err && 'response' in err) {
@@ -327,12 +357,8 @@ export class OddsService {
   }
 
   async refreshAllSports(): Promise<{ updated: number; inserted: number }> {
-    const sports = [
-      'americanfootball_nfl',
-      'americanfootball_ncaaf',
-      'basketball_nba',
-      'basketball_ncaab',
-    ];
+    const sports = sportsToRefresh();
+    this.log.log(`Odds refresh sports: ${sports.join(', ') || '(none)'}`);
     let updated = 0;
     let inserted = 0;
     for (const sportKey of sports) {
@@ -351,6 +377,10 @@ export class OddsService {
             err instanceof Error ? err.message : String(err)
           }`,
         );
+        if (this.isQuotaExceeded(err)) {
+          this.log.warn('Odds API quota reached; stopping this refresh run');
+          break;
+        }
       }
     }
     return { updated, inserted };
@@ -373,7 +403,11 @@ export class OddsService {
         const result = await this.fetchAndSaveSportMainlines(sport, {
           eventIds: eventId,
           allowInsert: true,
+          markets: market,
         });
+        this.log.log(
+          `Live line check for event ${eventId} (${market}): ${result.rows.length} quote(s)`,
+        );
         const live = result.rows.find((row) =>
           this.rowMatchesSelection(row, market, selectionKey),
         );
@@ -451,5 +485,19 @@ export class OddsService {
 
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private isQuotaExceeded(err: unknown): boolean {
+    if (typeof err !== 'object' || !err || !('response' in err)) {
+      return false;
+    }
+    const res = (
+      err as {
+        response?: { status?: number; data?: { error_code?: string } };
+      }
+    ).response;
+    return (
+      res?.status === 401 && res.data?.error_code === 'OUT_OF_USAGE_CREDITS'
+    );
   }
 }

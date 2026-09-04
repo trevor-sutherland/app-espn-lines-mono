@@ -1,11 +1,24 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
 import { OddsService } from './odds.service';
-
+import { OddsUsageService } from './odds-usage.service';
 import { GetOddsDto } from './dto/get-odds.dto';
+import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
 @Controller('odds')
 export class OddsController {
-  constructor(private readonly oddsService: OddsService) {}
+  constructor(
+    private readonly oddsService: OddsService,
+    private readonly usageTracker: OddsUsageService,
+  ) {}
+
+  @Get('usage')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getUsage() {
+    return this.usageTracker.getSnapshot();
+  }
 
   @Post('current-week')
   async getCurrentWeekOdds(@Body() body: GetOddsDto) {

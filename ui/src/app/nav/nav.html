@@ -112,12 +112,29 @@
                 }
                 Sync Results
               </button>
+              <div class="locksonly-odds-meter" title="The Odds API monthly credits">
+                <span class="locksonly-odds-meter-label">Credits left</span>
+                <strong>{{ remainingLabel() }}</strong>
+                <span class="locksonly-odds-meter-time">
+                  @if (oddsUsage?.lastCalledAt; as lastCall) {
+                    Last call
+                    {{ lastCall | date:'MMM d, h:mm a':'America/Chicago' }} CT
+                  } @else {
+                    No API calls yet
+                  }
+                </span>
+              </div>
             </div>
           }
 
           <span class="locksonly-user-email">
             {{ auth.session()?.email }}
           </span>
+          @if (auth.isAdmin() && oddsUsage?.quotaExceeded) {
+            <span class="locksonly-odds-quota-warn" role="status">
+              Odds credits empty
+            </span>
+          }
           <button type="button" class="btn btn-locksonly-outline" (click)="logout()">
             Log Out
           </button>

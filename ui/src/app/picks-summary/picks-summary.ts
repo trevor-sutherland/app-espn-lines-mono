@@ -35,7 +35,7 @@ export class PicksSummary implements OnInit, OnDestroy {
   undoing = false;
   undoError: string | null = null;
 
-  printOpen = false;
+  printKind: 'locks' | 'results' | null = null;
 
   constructor() {
     this.applyCurrentSeasonAndWeek();
@@ -124,13 +124,13 @@ export class PicksSummary implements OnInit, OnDestroy {
     });
   }
 
-  openPrint(): void {
-    this.printOpen = true;
+  openPrint(kind: 'locks' | 'results'): void {
+    this.printKind = kind;
     document.body.classList.add('summary-print-open');
   }
 
   closePrint(): void {
-    this.printOpen = false;
+    this.printKind = null;
     document.body.classList.remove('summary-print-open');
   }
 
@@ -146,6 +146,52 @@ export class PicksSummary implements OnInit, OnDestroy {
     return [...this.filteredPicks].sort((a, b) =>
       this.playerName(a).localeCompare(this.playerName(b)),
     );
+  }
+
+  printedResults(): IPickSummary[] {
+    const rank = (status: string) => {
+      if (status === 'won') return 0;
+      if (status === 'void') return 1;
+      if (status === 'lost') return 2;
+      return 3;
+    };
+    return [...this.filteredPicks].sort((a, b) => {
+      const byStatus = rank(a.status) - rank(b.status);
+      if (byStatus !== 0) return byStatus;
+      if (a.status === 'won') {
+        return (b.margin ?? 0) - (a.margin ?? 0);
+      }
+      if (a.status === 'lost') {
+        return (a.margin ?? 0) - (b.margin ?? 0);
+      }
+      return this.playerName(a).localeCompare(this.playerName(b));
+    });
+  }
+
+  isBlowoutLoss(pick: IPickSummary): boolean {
+    return (
+      pick.status === 'lost' &&
+      pick.margin != null &&
+      !Number.isNaN(Number(pick.margin)) &&
+      Number(pick.margin) <= -15
+    );
+  }
+
+  resultLabel(pick: IPickSummary): string {
+    if (pick.status === 'won') return 'Won';
+    if (pick.status === 'lost') return 'Lost';
+    if (pick.status === 'void') return 'Push';
+    return 'Pending';
+  }
+
+  weekRecord(): string {
+    const picks = this.filteredPicks;
+    const wins = picks.filter((pick) => pick.status === 'won').length;
+    const losses = picks.filter((pick) => pick.status === 'lost').length;
+    const pushes = picks.filter((pick) => pick.status === 'void').length;
+    const pending = picks.filter((pick) => pick.status === 'pending').length;
+    const base = `${wins}–${losses}–${pushes}`;
+    return pending ? `${base} · ${pending} pending` : base;
   }
 
   /** Most-picked spread team (or totals label) among the current filtered week. */

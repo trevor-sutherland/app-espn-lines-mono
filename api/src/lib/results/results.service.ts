@@ -11,6 +11,8 @@ import {
   emptyStanding,
   resolvePickMarket as resolveMarket,
 } from './standings.util';
+import { sportsToRefresh } from '../utils/sports';
+import { OddsUsageService } from '../odds/odds-usage.service';
 
 type OddsScoreRow = {
   name: string;
@@ -39,12 +41,17 @@ export type StandingRow = {
   points: number;
 };
 
-const SPORT_KEYS = [
-  'americanfootball_nfl',
-  'americanfootball_ncaaf',
-  'basketball_nba',
-  'basketball_ncaab',
-] as const;
+function isQuotaExceeded(err: unknown): boolean {
+  if (typeof err !== 'object' || !err || !('response' in err)) {
+    return false;
+  }
+  const res = (
+    err as {
+      response?: { status?: number; data?: { error_code?: string } };
+    }
+  ).response;
+  return res?.status === 401 && res.data?.error_code === 'OUT_OF_USAGE_CREDITS';
+}
 
 @Injectable()
 export class ResultsService implements OnModuleInit {
@@ -57,6 +64,7 @@ export class ResultsService implements OnModuleInit {
     private readonly gameResultModel: Model<GameResultDocument>,
     @InjectModel(Pick.name)
     private readonly pickModel: Model<PickDocument>,
+    private readonly usageTracker: OddsUsageService,
   ) {
     this.apiKey = process.env.ODDS_API_KEY || '';
     if (!this.apiKey) {
@@ -67,6 +75,31 @@ export class ResultsService implements OnModuleInit {
       timeout: 15_000,
       headers: { 'User-Agent': 'mongo-espn-line-app/1.0 (NestJS)' },
     });
+    this.http.interceptors.response.use(
+      (res) => {
+        void this.usageTracker.recordFromHeaders(
+          res.headers,
+          String(res.config.url ?? '/scores'),
+          false,
+        );
+        return res;
+      },
+      (err: unknown) => {
+        if (typeof err === 'object' && err && 'response' in err) {
+          const res = (
+            err as {
+              response?: { headers?: unknown; config?: { url?: string } };
+            }
+          ).response;
+          void this.usageTracker.recordFromHeaders(
+            res?.headers,
+            String(res?.config?.url ?? '/scores'),
+            isQuotaExceeded(err),
+          );
+        }
+        return Promise.reject(err);
+      },
+    );
   }
 
   async onModuleInit() {
@@ -245,7 +278,8 @@ export class ResultsService implements OnModuleInit {
     skipped: number;
   }> {
     const sports: Record<string, { upserted: number }> = {};
-    for (const sportKey of SPORT_KEYS) {
+    const sportKeys = sportsToRefresh();
+    for (const sportKey of sportKeys) {
       try {
         sports[sportKey] = await this.fetchAndSaveScores(sportKey);
       } catch (err) {
@@ -254,6 +288,10 @@ export class ResultsService implements OnModuleInit {
           err instanceof Error ? err.stack : String(err),
         );
         sports[sportKey] = { upserted: 0 };
+        if (isQuotaExceeded(err)) {
+          this.log.warn('Odds API quota reached; stopping score sync');
+          break;
+        }
       }
     }
     const { graded, skipped } = await this.gradePendingPicks();

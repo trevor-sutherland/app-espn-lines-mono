@@ -8,18 +8,25 @@ export class OddsScheduler {
 
   constructor(private readonly oddsService: OddsService) {}
 
-  /** Refresh DraftKings spreads for all sports every hour. */
-  @Cron('0 * * * *', { timeZone: 'America/Chicago' })
-  async refreshHourly(): Promise<void> {
-    this.log.log('Starting hourly odds refresh');
+  /**
+   * DraftKings mainlines, 2×/day Central (8:00 AM and 8:00 PM).
+   * Set ODDS_SCHEDULER_ENABLED=false on local so Cloud Run is the only poller.
+   */
+  @Cron('0 8,20 * * *', { timeZone: 'America/Chicago' })
+  async refreshScheduled(): Promise<void> {
+    if (process.env.ODDS_SCHEDULER_ENABLED === 'false') {
+      this.log.log('Odds scheduler disabled (ODDS_SCHEDULER_ENABLED=false)');
+      return;
+    }
+    this.log.log('Starting scheduled odds refresh');
     try {
       const result = await this.oddsService.refreshAllSports();
       this.log.log(
-        `Hourly odds refresh done: updated=${result.updated} inserted=${result.inserted}`,
+        `Scheduled odds refresh done: updated=${result.updated} inserted=${result.inserted}`,
       );
     } catch (err) {
       this.log.error(
-        'Hourly odds refresh failed',
+        'Scheduled odds refresh failed',
         err instanceof Error ? err.stack : String(err),
       );
     }

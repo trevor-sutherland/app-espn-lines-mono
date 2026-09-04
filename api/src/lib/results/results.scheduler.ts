@@ -8,14 +8,19 @@ export class ResultsScheduler {
 
   constructor(private readonly resultsService: ResultsService) {}
 
-  /** Nightly ATS score sync + pick grading at 11:00 PM America/Chicago. */
-  @Cron('0 23 * * *', { timeZone: 'America/Chicago' })
-  async runNightlySync(): Promise<void> {
-    this.log.log('Starting nightly results sync (11:00 PM America/Chicago)');
+  /** ATS score sync + pick grading: Thu/Fri 11:00 PM CT, Sunday 1:00 AM CT. */
+  @Cron('0 23 * * 4,5', { timeZone: 'America/Chicago' })
+  @Cron('0 1 * * 0', { timeZone: 'America/Chicago' })
+  async runScheduledSync(): Promise<void> {
+    if (process.env.ODDS_SCHEDULER_ENABLED === 'false') {
+      this.log.log('Results scheduler disabled (ODDS_SCHEDULER_ENABLED=false)');
+      return;
+    }
+    this.log.log('Starting scheduled results sync');
     try {
       const result = await this.resultsService.syncAllSports();
       this.log.log(
-        `Nightly sync done: graded=${result.graded} skipped=${result.skipped}`,
+        `Weekend results sync done: graded=${result.graded} skipped=${result.skipped}`,
       );
     } catch (err) {
       this.log.error(

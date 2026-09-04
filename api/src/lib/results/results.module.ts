@@ -6,6 +6,7 @@ import { User, UserSchema } from '../users/users.schema';
 import { ResultsService } from './results.service';
 import { ResultsController } from './results.controller';
 import { ResultsScheduler } from './results.scheduler';
+import { OddsModule } from '../odds/odds.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ResultsScheduler } from './results.scheduler';
       { name: Pick.name, schema: PickSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    OddsModule,
   ],
   controllers: [ResultsController],
   providers: [ResultsService, ResultsScheduler],

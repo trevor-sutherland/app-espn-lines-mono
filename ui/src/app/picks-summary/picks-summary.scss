@@ -130,3 +130,17 @@
 .summary-print-table td .locksonly-loy-badge {
   margin-left: 0.4rem;
 }
+
+.summary-print-result.is-win {
+  font-weight: 700;
+  color: #159d0b;
+}
+
+.summary-print-result.is-loss {
+  font-weight: 700;
+  color: #b42318;
+}
+
+.summary-print-result.is-push {
+  color: #555;
+}

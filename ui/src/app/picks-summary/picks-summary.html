@@ -6,8 +6,11 @@
       Undo a pick to reopen that sport and week so the player can submit again.
     </p>
     <div class="text-center mb-3">
-      <button type="button" class="btn btn-outline-primary btn-sm" (click)="openPrint()">
+      <button type="button" class="btn btn-outline-primary btn-sm me-2" (click)="openPrint('locks')">
         Print Summary
+      </button>
+      <button type="button" class="btn btn-outline-primary btn-sm" (click)="openPrint('results')">
+        Print Results
       </button>
     </div>
   }
@@ -59,7 +62,12 @@
       <tbody>
         @for (pick of filteredPicks; track pick._id) {
           <tr [class.locksonly-loy-row]="!!pick.supercharged">
-            <td>{{ playerName(pick) }}</td>
+            <td>
+              {{ playerName(pick) }}
+              @if (isBlowoutLoss(pick)) {
+                <span aria-label="Lost by 15 or more">💩</span>
+              }
+            </td>
             <td>
               <div class="picks-summary-pick">
                 <span>{{ pickLabel(pick) }}</span>
@@ -158,7 +166,7 @@
   </div>
 }
 
-@if (printOpen) {
+@if (printKind) {
   <div class="summary-print-sheet" role="dialog" aria-modal="true" aria-labelledby="summary-print-title">
     <div class="summary-print-toolbar no-print">
       <button type="button" class="btn btn-primary btn-sm" (click)="printSheet()">
@@ -174,39 +182,101 @@
         alt="LocksOnly"
         class="summary-print-logo"
       />
-      <p class="summary-print-meta">{{ sportLabel }} · Week {{ selectedWeek }}</p>
-      @if (topPickLine()) {
+      <p class="summary-print-meta">
+        {{ sportLabel }} · Week {{ selectedWeek }}
+        @if (printKind === 'results') {
+          · Results
+        }
+      </p>
+      @if (printKind === 'locks' && topPickLine()) {
         <p class="summary-print-top-pick">
           <span class="summary-print-top-label">Top pick</span>
           {{ topPickLine() }}
         </p>
       }
+      @if (printKind === 'results') {
+        <p class="summary-print-top-pick">
+          <span class="summary-print-top-label">Record</span>
+          {{ weekRecord() }}
+        </p>
+      }
     </header>
     <div class="summary-print-card">
-      @if (printedPicks().length === 0) {
-        <p class="summary-print-empty">No picks submitted this week.</p>
-      } @else {
-        <table class="summary-print-table">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Pick</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (pick of printedPicks(); track pick._id) {
+      @if (printKind === 'locks') {
+        @if (printedPicks().length === 0) {
+          <p class="summary-print-empty">No picks submitted this week.</p>
+        } @else {
+          <table class="summary-print-table">
+            <thead>
               <tr>
-                <td>{{ playerName(pick) }}</td>
-                <td>
-                  <span>{{ pickLabel(pick) }}</span>
-                  @if (pick.supercharged) {
-                    <span class="locksonly-loy-badge">LOY</span>
-                  }
-                </td>
+                <th>Player</th>
+                <th>Pick</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (pick of printedPicks(); track pick._id) {
+                <tr>
+                  <td>{{ playerName(pick) }}</td>
+                  <td>
+                    <span>{{ pickLabel(pick) }}</span>
+                    @if (pick.supercharged) {
+                      <span class="locksonly-loy-badge">LOY</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      } @else {
+        @if (printedResults().length === 0) {
+          <p class="summary-print-empty">No picks submitted this week.</p>
+        } @else {
+          <table class="summary-print-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Pick</th>
+                <th>Result</th>
+                <th>Margin</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (pick of printedResults(); track pick._id) {
+                <tr>
+                  <td>
+                    {{ playerName(pick) }}
+                    @if (isBlowoutLoss(pick)) {
+                      <span aria-label="Lost by 15 or more">💩</span>
+                    }
+                  </td>
+                  <td>
+                    <span>{{ pickLabel(pick) }}</span>
+                    @if (pick.supercharged) {
+                      <span class="locksonly-loy-badge">LOY</span>
+                    }
+                  </td>
+                  <td
+                    class="summary-print-result"
+                    [class.is-win]="pick.status === 'won'"
+                    [class.is-loss]="pick.status === 'lost'"
+                    [class.is-push]="pick.status === 'void'"
+                  >
+                    {{ resultLabel(pick) }}
+                  </td>
+                  <td
+                    class="summary-print-result"
+                    [class.is-win]="pick.status === 'won'"
+                    [class.is-loss]="pick.status === 'lost'"
+                    [class.is-push]="pick.status === 'void'"
+                  >
+                    {{ marginLabel(pick) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
       }
     </div>
   </div>

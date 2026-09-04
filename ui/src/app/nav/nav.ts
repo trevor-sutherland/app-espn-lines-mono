@@ -4,26 +4,28 @@ import {
   computed,
   effect,
   inject,
+  OnDestroy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { SportService } from '../services/sport.service';
-import { NflOddsService } from '../services/sport-odds-service';
+import { NflOddsService, type OddsUsageSnapshot } from '../services/sport-odds-service';
 import { ResultsService } from '../results/results.service';
 import { SPORT_OPTIONS, resolveUserSports } from '../enums/sports.enum';
 
 @Component({
   selector: 'app-nav',
   standalone: true,
-  imports: [FormsModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive],
   templateUrl: './nav.html',
   styleUrl: './nav.scss',
   changeDetection: ChangeDetectionStrategy.Eager,
 })
-export class NavComponent {
+export class NavComponent implements OnDestroy {
   readonly auth = inject(AuthService);
   readonly sportService = inject(SportService);
   private readonly oddsService = inject(NflOddsService);
@@ -33,6 +35,8 @@ export class NavComponent {
   refreshing = false;
   syncingResults = false;
   navCollapsed = true;
+  oddsUsage: OddsUsageSnapshot | null = null;
+  private usageTimer: ReturnType<typeof setInterval> | null = null;
 
   readonly sports = computed(() => {
     const allowed = new Set(resolveUserSports(this.auth.session()?.sports));
@@ -55,6 +59,16 @@ export class NavComponent {
         this.sportService.setSportKey(keys[0]);
       }
     });
+
+    effect(() => {
+      if (this.auth.isAdmin()) {
+        this.loadUsage();
+        this.startUsageTimer();
+      } else {
+        this.oddsUsage = null;
+        this.stopUsageTimer();
+      }
+    });
   }
 
   toggleNav(): void {
@@ -68,9 +82,11 @@ export class NavComponent {
     this.oddsService.getFreshOdds(key).subscribe({
       next: () => {
         this.refreshing = false;
+        this.loadUsage();
       },
       error: () => {
         this.refreshing = false;
+        this.loadUsage();
       },
     });
   }
@@ -81,11 +97,45 @@ export class NavComponent {
     this.resultsService.syncResults().subscribe({
       next: () => {
         this.syncingResults = false;
+        this.loadUsage();
       },
       error: () => {
         this.syncingResults = false;
+        this.loadUsage();
       },
     });
+  }
+
+  loadUsage(): void {
+    if (!this.auth.isAdmin()) return;
+    this.oddsService.getUsage().subscribe({
+      next: (usage) => {
+        this.oddsUsage = usage;
+      },
+      error: () => {
+        /* Keep the last snapshot if the meter cannot refresh. */
+      },
+    });
+  }
+
+  remainingLabel(): string {
+    const remaining = this.oddsUsage?.remaining;
+    return remaining == null ? '—' : String(remaining);
+  }
+
+  private startUsageTimer(): void {
+    if (this.usageTimer) return;
+    this.usageTimer = setInterval(() => this.loadUsage(), 45_000);
+  }
+
+  private stopUsageTimer(): void {
+    if (!this.usageTimer) return;
+    clearInterval(this.usageTimer);
+    this.usageTimer = null;
+  }
+
+  ngOnDestroy(): void {
+    this.stopUsageTimer();
   }
 
   logout(): void {

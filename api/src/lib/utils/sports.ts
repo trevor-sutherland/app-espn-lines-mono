@@ -33,3 +33,21 @@ export function resolveUserSports(sports?: string[] | null): SportKey[] {
   const parsed = parseSports(sports);
   return parsed.length ? parsed : [...ALL_SPORT_KEYS];
 }
+
+const DEFAULT_REFRESH_SPORTS: SportKey[] = [
+  'americanfootball_nfl',
+  'americanfootball_ncaaf',
+];
+
+/**
+ * Sports that scheduled odds/score polls may hit.
+ * NBA/NCAAB are off until ODDS_REFRESH_SPORTS includes them.
+ */
+export function sportsToRefresh(): SportKey[] {
+  const raw = process.env.ODDS_REFRESH_SPORTS?.trim();
+  if (raw) {
+    const parsed = parseSports(raw.split(',').map((part) => part.trim()));
+    if (parsed.length) return parsed;
+  }
+  return [...DEFAULT_REFRESH_SPORTS];
+}
