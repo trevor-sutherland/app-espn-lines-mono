@@ -61,11 +61,20 @@ jobs:
           docker push "${IMAGE}:latest"
 
       - name: Deploy to Cloud Run
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
+          EXTRA=()
+          if [ -n "$ODDS_API_KEY" ]; then
+            EXTRA+=(--update-env-vars "ODDS_API_KEY=${ODDS_API_KEY}")
+          else
+            echo "ODDS_API_KEY secret is not set; keeping the existing Cloud Run value."
+          fi
           gcloud run deploy "${SERVICE}" \
             --project="${PROJECT_ID}" \
             --region="${REGION}" \
             --image="${IMAGE}:${GITHUB_SHA}" \
             --no-cpu-throttling \
             --min-instances=1 \
+            "${EXTRA[@]}" \
             --quiet
