@@ -574,6 +574,44 @@ body.locksonly-body {
 
 }
 
+.locksonly-game-card.is-started {
+
+    opacity: 0.62;
+
+}
+
+.locksonly-game-card.is-started:hover {
+
+    transform: none;
+
+    box-shadow: var(--lo-shadow);
+
+}
+
+.game-started-badge {
+
+    max-width: 11.5rem;
+
+    padding: 0.28rem 0.65rem;
+
+    color: #f4dcc0;
+
+    background: rgba(8, 18, 32, 0.55);
+
+    border: 1px solid rgba(244, 220, 192, 0.35);
+
+    border-radius: 999px;
+
+    font-size: 0.68rem;
+    font-weight: 800;
+
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    text-align: right;
+
+}
+
 
 /* ==========================================================
    GAME HEADER

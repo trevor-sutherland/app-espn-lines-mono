@@ -26,6 +26,7 @@ import { PickNotificationService } from './pick-notification.service';
 import type { Request } from 'express';
 import { getCurrentSeasonAndWeek } from '../utils/seasson-week.util';
 import { parseSportQuery, type SportKey } from '../utils/sports';
+import { eventHasStarted } from '../utils/event-lock.util';
 
 // Extend Express Request interface to include 'user'
 declare module 'express-serve-static-core' {
@@ -80,6 +81,8 @@ export class PicksController {
       );
     }
 
+    await this.assertGameNotStarted(createPickDto.eventId);
+
     const market = this.resolveMarket(createPickDto);
     const selection = this.normalizeSelection(createPickDto.team, market);
     if (!selection) {
@@ -109,6 +112,8 @@ export class PicksController {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+
+    await this.assertGameNotStarted(createPickDto.eventId);
 
     const submittedLine = Number(createPickDto.line);
     const currentLine = Number(live.line);
@@ -249,6 +254,20 @@ export class PicksController {
       sportKey,
     );
     return { hasPicked: !!existing, season, week, sportKey };
+  }
+
+  private async assertGameNotStarted(eventId: string): Promise<void> {
+    const commenceTime = await this.oddsService.getEventCommenceTime(eventId);
+    if (eventHasStarted(commenceTime)) {
+      throw new HttpException(
+        {
+          code: 'GAME_STARTED',
+          message:
+            'This game has already started and is no longer available to pick.',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
   }
 
   private requireUserId(req: Request): string {

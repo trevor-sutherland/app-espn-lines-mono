@@ -80,7 +80,10 @@
       <form>
         @for (event of visibleEventOdds; track event.id) {
           @if (event.bookmakers.length !== 0) {
-            <section class="locksonly-game-card">
+            <section
+              class="locksonly-game-card"
+              [class.is-started]="eventHasStarted(event) && !(weekLocked && isEventSelected(event.id))"
+            >
               <div class="locksonly-game-header">
                 <div class="game-time">
                   <svg
@@ -141,6 +144,8 @@
                     </button>
                   } @else if (weekLocked && isEventSelected(event.id)) {
                     <div class="game-header-mark" aria-hidden="true">✓</div>
+                  } @else if (eventHasStarted(event)) {
+                    <span class="game-started-badge">Kickoff passed — unavailable</span>
                   }
                 </div>
               </div>
@@ -153,7 +158,7 @@
                     <div class="text-center">TOTAL</div>
                   </div>
                   @for (side of matchupSides(event); track side.team) {
-                    <div class="matchup-grid matchup-row" [class.is-locked]="!canPick">
+                    <div class="matchup-grid matchup-row" [class.is-locked]="!canPickForEvent(event)">
                       <div class="team-cell">
                         @if (getTeamAbbr(side.team, sportKey)) {
                           <img
@@ -175,7 +180,7 @@
                           <label
                             class="locksonly-line-btn"
                             [class.is-selected]="isSelectedOutcome(event.id, side.team, 'spreads')"
-                            [class.is-locked]="!canPick"
+                            [class.is-locked]="!canPickForEvent(event)"
                           >
                             <input
                               class="locksonly-radio"
@@ -184,7 +189,7 @@
                               [value]="event.id + 'spreads' + side.team + bookmaker.key"
                               [checked]="isSelectedOutcome(event.id, side.team, 'spreads')"
                               (click)="togglePick($event, event.id, side.team, spread.point, 'spreads')"
-                              [disabled]="!canPick"
+                              [disabled]="!canPickForEvent(event)"
                               [attr.aria-label]="'Pick ' + side.team + ' ' + formatLine(spread.point)"
                             />
                             {{ formatLine(spread.point) }}
@@ -199,7 +204,7 @@
                             <label
                               class="locksonly-line-btn"
                               [class.is-selected]="isSelectedOutcome(event.id, side.total, 'totals')"
-                              [class.is-locked]="!canPick"
+                              [class.is-locked]="!canPickForEvent(event)"
                             >
                               <input
                                 class="locksonly-radio"
@@ -208,7 +213,7 @@
                                 [value]="event.id + 'totals' + side.total + bookmaker.key"
                                 [checked]="isSelectedOutcome(event.id, side.total, 'totals')"
                                 (click)="togglePick($event, event.id, side.total, total.point, 'totals')"
-                                [disabled]="!canPick"
+                                [disabled]="!canPickForEvent(event)"
                                 [attr.aria-label]="'Pick ' + formatTotalButton(side.total, total.point)"
                               />
                               {{ formatTotalButton(side.total, total.point) }}

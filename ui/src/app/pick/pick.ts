@@ -22,6 +22,7 @@ import {
   type PickMarket,
 } from '../helpers/pick-label';
 import { IBookmakers } from '../models/bookmaker.model';
+import { eventHasStarted as kickoffHasPassed } from '../helpers/event-lock';
 import {
   eventHasConference,
   getConferenceLabel,
@@ -91,6 +92,8 @@ export class Pick implements OnInit, OnDestroy {
   sportsKey: string;
   eventOddsSubscription: Subscription | null = null;
   private oddsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private kickoffTimer: ReturnType<typeof setInterval> | null = null;
+  nowMs = Date.now();
   getTeamAbbr = getTeamAbbr;
 
   private http = inject(HttpClient);
@@ -130,6 +133,10 @@ export class Pick implements OnInit, OnDestroy {
         this.setData();
       }
     }, 60 * 60 * 1000);
+    this.kickoffTimer = setInterval(() => {
+      this.nowMs = Date.now();
+      this.enforceKickoffLock();
+    }, 15_000);
   }
 
   private applyCurrentWeek(): void {
@@ -146,6 +153,10 @@ export class Pick implements OnInit, OnDestroy {
     if (this.oddsRefreshTimer) {
       clearInterval(this.oddsRefreshTimer);
       this.oddsRefreshTimer = null;
+    }
+    if (this.kickoffTimer) {
+      clearInterval(this.kickoffTimer);
+      this.kickoffTimer = null;
     }
   }
 
@@ -237,8 +248,39 @@ export class Pick implements OnInit, OnDestroy {
     );
   }
 
+  eventHasStarted(event: IEventOdds): boolean {
+    return kickoffHasPassed(event.commence_time, new Date(this.nowMs));
+  }
+
+  canPickForEvent(event: IEventOdds): boolean {
+    return this.canPick && !this.eventHasStarted(event);
+  }
+
+  private eventById(eventId: string): IEventOdds | undefined {
+    return this.eventOdds.find((row) => row.id === eventId);
+  }
+
+  private selectedEventHasStarted(): boolean {
+    if (!this.selected) return false;
+    const event = this.eventById(this.selected.eventId);
+    return !!event && this.eventHasStarted(event);
+  }
+
+  private enforceKickoffLock(): void {
+    if (this.weekLocked || !this.selectedEventHasStarted()) return;
+    this.selected = null;
+    this.confirmOpen = false;
+    this.error =
+      'That game has started and is no longer available to pick.';
+  }
+
   get showEventSubmit(): boolean {
-    return this.picksOpen && !this.weekLocked && !!this.selected;
+    return (
+      this.picksOpen &&
+      !this.weekLocked &&
+      !!this.selected &&
+      !this.selectedEventHasStarted()
+    );
   }
 
   get selectedMatchup(): string | null {
@@ -254,7 +296,8 @@ export class Pick implements OnInit, OnDestroy {
     line: number,
     market: PickMarket,
   ) {
-    if (!this.canPick) return;
+    const event = this.eventById(eventId);
+    if (!this.canPick || !event || this.eventHasStarted(event)) return;
     this.selected = {
       eventId,
       team,
@@ -276,7 +319,8 @@ export class Pick implements OnInit, OnDestroy {
     line: number,
     market: PickMarket,
   ) {
-    if (!this.canPick) {
+    const event = this.eventById(eventId);
+    if (!this.canPick || !event || this.eventHasStarted(event)) {
       domEvent.preventDefault();
       return;
     }
@@ -349,6 +393,10 @@ export class Pick implements OnInit, OnDestroy {
     if (!this.selected || !this.picksOpen || this.weekLocked || this.submitting) {
       return;
     }
+    if (this.selectedEventHasStarted()) {
+      this.enforceKickoffLock();
+      return;
+    }
     this.error = null;
     this.confirmOpen = true;
   }
@@ -364,6 +412,10 @@ export class Pick implements OnInit, OnDestroy {
 
   submitPick(acceptChangedLine = false) {
     if (!this.selected || this.weekLocked || !this.picksOpen) return;
+    if (this.selectedEventHasStarted()) {
+      this.enforceKickoffLock();
+      return;
+    }
     this.submitting = true;
     this.error = null;
     const headers = this.auth.authHeaders();
@@ -388,6 +440,14 @@ export class Pick implements OnInit, OnDestroy {
       error: (err) => {
         this.submitting = false;
         const body = err.error;
+        if (body?.code === 'GAME_STARTED') {
+          this.confirmOpen = false;
+          this.selected = null;
+          this.error =
+            body?.message ||
+            'This game has already started and is no longer available to pick.';
+          return;
+        }
         if (err.status === 409 && body?.code === 'LOY_ALREADY_USED') {
           this.loyAvailable = false;
           this.useLoy = false;

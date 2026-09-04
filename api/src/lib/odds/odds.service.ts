@@ -410,6 +410,15 @@ export class OddsService {
     return fallback?.line != null ? { line: fallback.line } : null;
   }
 
+  async getEventCommenceTime(eventId: string): Promise<string | null> {
+    const row = await this.oddsModel
+      .findOne({ eventId })
+      .select('commenceTime')
+      .lean()
+      .exec();
+    return row?.commenceTime ?? null;
+  }
+
   /** @deprecated Use getDraftKingsLine. Kept so existing callers still compile. */
   async getDraftKingsSpread(
     eventId: string,
