@@ -85,3 +85,12 @@ export function formatPickSelectionLabel(input: {
   if (!team || !line) return null;
   return `${team} ${line}${loySuffix}`;
 }
+
+/** Email subject used to route iMessage automations by sport. */
+export function pickNotifySubject(sportKey?: string | null): string {
+  const sport = (sportKey ?? '').toLowerCase();
+  if (sport === 'americanfootball_nfl') return 'LOCKSONLY NFL';
+  if (sport === 'basketball_nba') return 'LOCKSONLY NBA';
+  if (sport === 'basketball_ncaab') return 'LOCKSONLY NCAAB';
+  return 'LOCKSONLY';
+}
