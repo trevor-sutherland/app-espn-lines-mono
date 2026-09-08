@@ -89,7 +89,7 @@ export function formatPickSelectionLabel(input: {
 /** Email subject used to route iMessage automations by sport. */
 export function pickNotifySubject(sportKey?: string | null): string {
   const sport = (sportKey ?? '').toLowerCase();
-  if (sport === 'americanfootball_nfl') return 'LOCKSONLY NFL';
+  if (sport === 'americanfootball_nfl') return 'NFLLOCK';
   if (sport === 'basketball_nba') return 'LOCKSONLY NBA';
   if (sport === 'basketball_ncaab') return 'LOCKSONLY NCAAB';
   return 'LOCKSONLY';
